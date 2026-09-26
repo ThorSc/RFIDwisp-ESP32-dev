@@ -1,0 +1,70 @@
+#include "strings.h"
+#include <Arduino.h>
+#include <ArduinoJson.h>
+#include <LittleFS.h>
+
+// clang-format off
+static const char *const keys[(int)StrId::Count] = {
+  "app_title", "ready", "status_hold_tag", "read_tag", "write_tag", "back",
+  "save", "spool_data", "material", "color", "vendor", "spool_number",
+  "weight", "settings", "error_no_tag", "error_not_classic_1k",
+  "error_auth_failed", "error_read_failed", "error_write_failed",
+  "error_unknown_tag", "tag_blank", "tag_read", "tag_written",
+  "pn532_not_found", "wifi_status", "moonraker_address", "spoolman_address",
+  "use_spoolman", "reconfigure_network", "qidi_data", "box", "read_box",
+  "printer_connected", "printer_not_connected", "printer_checking",
+  "slot_empty", "no_moonraker_configured", "spool", "new_spool",
+  "spoolman_vendor", "spoolman_skipped", "spool_created",
+  "spoolman_create_failed", "loading_spoolman_data", "spoolman_load_failed",
+  "printer", "printers", "manage_printers", "printer_name", "new", "delete",
+  "no_printers", "filament", "no_filament",
+};
+
+static const char *const defaultStrings[(int)StrId::Count] = {
+  "RFID Wisp", "Ready.", "Please place a tag...", "Read tag", "Write tag",
+  "Back", "Save", "Spool data", "Material", "Color", "Vendor",
+  "Spool number", "Weight (g)", "Settings", "No tag present.",
+  "Not a MIFARE Classic 1K tag.", "Authentication failed (sector 1).",
+  "Read failed.", "Write failed or not confirmed.",
+  "Tag does not hold valid RFIDwisp spool data.", "Tag is blank (not written).",
+  "Tag read.", "Tag written.", "PN532 not found - check wiring.",
+  "Wi-Fi status", "Moonraker address", "Spoolman address", "Use Spoolman",
+  "Reconfigure network", "QIDI Data", "Box", "Read box", "Connected",
+  "Not connected", "Checking...", "Empty",
+  "No Moonraker address configured (see Settings).", "Spool", "New spool",
+  "Spoolman vendor", "No matching Spoolman filament - wrote tag without a Spoolman link.",
+  "Spool created in Spoolman.", "Could not create Spoolman spool - wrote tag without a Spoolman link.",
+  "Loading Spoolman data...", "Could not load Spoolman data.",
+  "Printer", "Printers", "Manage printers", "Name", "New", "Delete",
+  "No printers configured.", "Filament", "(pick to prefill)",
+};
+// clang-format on
+
+static String overrides[(int)StrId::Count];
+static bool hasOverride[(int)StrId::Count] = {false};
+
+void stringsInit() {
+  if (!LittleFS.begin(true)) return; // format-on-fail; no override file = English
+
+  File file = LittleFS.open("/lang.json", "r");
+  if (!file) return;
+
+  JsonDocument doc;
+  DeserializationError error = deserializeJson(doc, file);
+  file.close();
+  if (error) return;
+
+  for (int i = 0; i < (int)StrId::Count; i++) {
+    JsonVariantConst value = doc[keys[i]];
+    if (value.is<const char *>()) {
+      overrides[i] = value.as<const char *>();
+      hasOverride[i] = true;
+    }
+  }
+}
+
+const char *T(StrId id) {
+  int i = (int)id;
+  if (i < 0 || i >= (int)StrId::Count) return "";
+  return hasOverride[i] ? overrides[i].c_str() : defaultStrings[i];
+}

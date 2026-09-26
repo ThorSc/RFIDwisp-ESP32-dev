@@ -1,0 +1,72 @@
+#pragma once
+
+// UI text lookup. Every user-facing string in the firmware goes through an
+// StrId + T(id), never a literal, so a language can be added later without
+// touching UI code:
+//   - `defaultStrings[]` (strings.cpp) is the built-in English text, always
+//     present even with no filesystem.
+//   - If /lang.json exists on LittleFS ({"read_tag": "Tag lesen", ...}, keyed
+//     by the `key` column below, one file = one full language), each entry
+//     it contains overrides the matching StrId. This lets the string table
+//     be swapped (e.g. to German, or to fit less flash by trimming unused
+//     strings) without a firmware rebuild.
+enum class StrId {
+  AppTitle,
+  Ready,
+  StatusHoldTag,
+  ReadTag,
+  WriteTag,
+  Back,
+  Save,
+  SpoolData,
+  Material,
+  Color,
+  Vendor,
+  SpoolNumber,
+  Weight,
+  Settings,
+  ErrorNoTag,
+  ErrorNotClassic1k,
+  ErrorAuthFailed,
+  ErrorReadFailed,
+  ErrorWriteFailed,
+  ErrorUnknownTag,
+  TagBlank,
+  TagRead,
+  TagWritten,
+  Pn532NotFound,
+  WifiStatus,
+  MoonrakerAddress,
+  SpoolmanAddress,
+  UseSpoolman,
+  ReconfigureNetwork,
+  QidiData,
+  Box,
+  ReadBox,
+  PrinterConnected,
+  PrinterNotConnected,
+  PrinterChecking,
+  SlotEmpty,
+  NoMoonrakerConfigured,
+  Spool,
+  NewSpool,
+  SpoolmanVendor,
+  SpoolmanSkipped,
+  SpoolCreated,
+  SpoolmanCreateFailed,
+  LoadingSpoolmanData,
+  SpoolmanLoadFailed,
+  Printer,
+  Printers,
+  ManagePrinters,
+  PrinterName,
+  New,
+  Delete,
+  NoPrinters,
+  Filament,
+  NoFilament,
+  Count // sentinel, not a real string
+};
+
+void stringsInit();                 // mounts LittleFS and loads /lang.json if present
+const char *T(StrId id);            // current text for id (override or English default)
