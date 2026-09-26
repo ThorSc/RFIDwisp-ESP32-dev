@@ -1,5 +1,11 @@
 # RFIDwisp on WT32-SC01 Plus
 
+## Downloads
+
+Prebuilt firmware is published as a release to the public distribution repo
+[`ThorSc/RFIDwisp-ESP32`](https://github.com/ThorSc/RFIDwisp-ESP32/releases/latest)
+whenever a push to `master` carries a new `VERSION` (see "Releasing" below).
+
 Standalone firmware for the WT32-SC01 Plus (ESP32-S3, 3.5" ST7796 touch
 display) plus an external PN532 RFID module: a from-scratch, feature-equivalent
 reimplementation of the [Flutter RFIDwisp app](../RFIDwisp-dev) that runs
@@ -162,3 +168,25 @@ the GitHub-release update checker.
   adding anything longer-running (e.g. live Moonraker polling).
 - Not flashed/tested on real hardware yet by this session - review pin
   assignments and library versions before relying on it.
+
+## Releasing
+
+Releases are published to the public [`ThorSc/RFIDwisp-ESP32`](https://github.com/ThorSc/RFIDwisp-ESP32)
+repo by [`.github/workflows/release.yml`](.github/workflows/release.yml),
+mirroring the pattern used by the sibling Flutter project's
+`RFIDwisp-dev`/`RFIDwisp` repos: this source repo stays private, only built
+firmware is published.
+
+1. Bump the version in [`VERSION`](VERSION).
+2. Push to `master`. If that version has no release yet in the distribution
+   repo, the workflow builds the firmware and publishes it as a GitHub
+   Release there (source commit tagged `v<version>` here too); if it already
+   does, the run is a no-op.
+3. To rebuild/re-upload an already-released version (e.g. after fixing a
+   packaging issue), run the workflow manually from the Actions tab with
+   "rebuild" ticked.
+
+One-time setup this repo's Settings -> Secrets and variables -> Actions
+needs before the first release: a secret named `RELEASES_REPO_TOKEN`
+holding a classic GitHub PAT with the `public_repo` scope (see the comment
+at the top of `release.yml` for why classic, not fine-grained).

@@ -1,0 +1,178 @@
+name: Build and publish release
+
+# Runs on every push to master that touches the firmware or the VERSION
+# file. The version in VERSION decides whether that push makes a release:
+# if the public distribution repo ThorSc/RFIDwisp-ESP32 has no release
+# v<version> yet, the firmware is built and published as that release (and
+# the source commit is tagged v<version>); if it already has one, the run
+# stops after the first job and builds nothing. So a release happens by
+# bumping VERSION and pushing. The private source repo is never made
+# public - only the built firmware is uploaded as a GitHub Release in the
+# distribution repo.
+#
+# The workflow can also be started manually (workflow_dispatch); with
+# "rebuild" ticked it rebuilds and re-uploads the assets of a version that
+# already has a release.
+#
+# Setup required once:
+#   1. Create the public repo ThorSc/RFIDwisp-ESP32 with at least one commit
+#      (e.g. a README) - creating a release fails on a completely empty
+#      repo ("Repository is empty").
+#   2. Create a classic GitHub PAT (Settings -> Developer settings ->
+#      Personal access tokens -> Tokens (classic)) with the "public_repo"
+#      scope (see RFIDwisp-dev's release.yml for why classic, not
+#      fine-grained: the latter repeatedly failed for this cross-repo
+#      publish pattern).
+#   3. Add it as a secret named RELEASES_REPO_TOKEN in this (private)
+#      repo's Settings -> Secrets and variables -> Actions.
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "wt32sc01plus/**"
+      - "VERSION"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Rebuild and re-upload the assets even if this version already has a release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One run at a time: two quick pushes must not both find "no release yet"
+# and build the same version; the second run then sees the release and skips.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  DIST_REPO: ThorSc/RFIDwisp-ESP32
+  PIO_ENV: wt32-sc01-plus
+
+jobs:
+  prepare:
+    # Decides whether this push makes a release, and of which version.
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+      version: ${{ steps.decide.outputs.version }}
+      tag: ${{ steps.decide.outputs.tag }}
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Decide whether to release
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+          REBUILD: ${{ inputs.rebuild }}
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < VERSION)
+          tag="v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          if [ "$REBUILD" != "true" ] && gh release view "$tag" -R "$DIST_REPO" > /dev/null 2>&1; then
+            echo "::notice::Release $tag already exists - nothing to publish. Bump VERSION to make a new release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Releasing $tag"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: platformio-${{ hashFiles('wt32sc01plus/platformio.ini') }}
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build firmware
+        working-directory: wt32sc01plus
+        run: pio run -e "$PIO_ENV"
+
+      - name: Package release asset
+        working-directory: wt32sc01plus
+        run: |
+          set -euo pipefail
+          build_dir=".pio/build/$PIO_ENV"
+          boot_app0=$(find ~/.platformio/packages/framework-arduinoespressif32/tools/partitions -name boot_app0.bin | head -1)
+
+          out="release_assets/RFIDwisp-ESP32-wt32sc01plus"
+          mkdir -p "$out"
+          cp "$build_dir/bootloader.bin" "$build_dir/partitions.bin" "$build_dir/firmware.bin" "$out/"
+          cp "$boot_app0" "$out/boot_app0.bin"
+          cp FLASHING.md "$out/"
+          cp data/lang.example.json "$out/"
+
+          (cd release_assets && zip -r "RFIDwisp-ESP32-wt32sc01plus-${{ needs.prepare.outputs.tag }}.zip" RFIDwisp-ESP32-wt32sc01plus)
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zip
+          path: wt32sc01plus/release_assets/*.zip
+          if-no-files-found: error
+
+  publish-release:
+    # Runs once, after the build finishes, so only a single job ever
+    # creates/updates the release and uploads assets to it.
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      # To tag the source commit with the release version.
+      contents: write
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-zip
+          path: release_assets
+
+      - name: Publish release to distribution repo
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: ${{ env.DIST_REPO }}
+          token: ${{ secrets.RELEASES_REPO_TOKEN }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: ${{ needs.prepare.outputs.tag }}
+          files: release_assets/*
+
+      - name: Tag the source commit
+        # For traceability: which commit of this repo a release was built
+        # from. Not fatal (a rebuild finds the tag already there): the
+        # release itself is already published.
+        continue-on-error: true
+        run: |
+          tag="${{ needs.prepare.outputs.tag }}"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "Tag $tag already exists in this repo"
+          else
+            git tag "$tag"
+            git push origin "$tag"
+          fi
