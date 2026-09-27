@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "display_setup.h"
 
 #ifndef FIRMWARE_VERSION
 #define FIRMWARE_VERSION "dev"
@@ -36,6 +37,7 @@ static lv_obj_t *lblFilament, *ddFilament; // Spoolman mode, "New spool" only
 static lv_obj_t *btnColor, *lblColorHex; // shows the selected colour; ddColor is hidden state
 static lv_obj_t *colorOverlay;
 static lv_obj_t *lblEditStatus;
+static lv_obj_t *sbSleep; // settings: screen sleep timeout in minutes
 static lv_obj_t *btnSpool, *spoolSwatch, *spoolBtnLabel;          // Spoolman mode; ddSpool is hidden state
 static lv_obj_t *btnFilament, *filamentSwatch, *filamentBtnLabel; // ditto for ddFilament
 static lv_obj_t *pickerOverlay;
@@ -189,6 +191,11 @@ static void numberKeyboardCb(lv_event_t *e) {
       long value = atol(text);
       if (value > numberMax) value = numberMax;
       setNumberField(numberTarget, value);
+      if (numberTarget == sbSleep) {
+        settings.sleepMinutes = (uint8_t)value;
+        settings.save();
+        displaySetSleepTimeout(settings.sleepMinutes);
+      }
     }
     closeNumberOverlay();
   } else if (code == LV_EVENT_CANCEL) {
@@ -203,7 +210,8 @@ static void openNumberOverlay(lv_event_t *e) {
   if (numberOverlay || lv_obj_has_state(target, LV_STATE_DISABLED)) return;
   numberTarget = target;
   bool isWeight = target == sbWeight;
-  numberMax = isWeight ? 10000 : 999;
+  bool isSleep = target == sbSleep;
+  numberMax = isWeight ? 10000 : isSleep ? 60 : 999;
 
   numberOverlay = lv_obj_create(lv_layer_top());
   lv_obj_set_size(numberOverlay, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -216,14 +224,14 @@ static void openNumberOverlay(lv_event_t *e) {
   lv_obj_clear_flag(numberOverlay, LV_OBJ_FLAG_SCROLLABLE);
 
   lv_obj_t *title = lv_label_create(numberOverlay);
-  lv_label_set_text(title, isWeight ? T(StrId::Weight) : T(StrId::SpoolNumber));
+  lv_label_set_text(title, isWeight ? T(StrId::Weight) : isSleep ? T(StrId::SleepTimeout) : T(StrId::SpoolNumber));
   lv_obj_set_style_text_color(title, lv_color_white(), 0);
   lv_obj_align(title, LV_ALIGN_TOP_LEFT, 15, 8);
 
   numberInput = lv_textarea_create(numberOverlay);
   lv_textarea_set_one_line(numberInput, true);
   lv_textarea_set_accepted_chars(numberInput, "0123456789");
-  lv_textarea_set_max_length(numberInput, isWeight ? 5 : 3);
+  lv_textarea_set_max_length(numberInput, isWeight ? 5 : isSleep ? 2 : 3);
   lv_textarea_set_placeholder_text(numberInput, String(getNumberField(target)).c_str());
   lv_obj_set_size(numberInput, SCREEN_WIDTH - 30, 46);
   lv_obj_align(numberInput, LV_ALIGN_TOP_LEFT, 15, 30);
@@ -408,10 +416,27 @@ static void openPicker(bool forSpool) {
   }
 }
 
+// A chosen filament fixes material, colour and vendor of the new spool, so
+// only the initial weight stays editable; "(pick to prefill)" frees them again.
+static void setFilamentFieldsEnabled(bool enabled) {
+  lv_obj_t *fields[] = {ddMaterial, btnColor, ddSpoolmanVendor};
+  for (lv_obj_t *field : fields) {
+    if (enabled) {
+      lv_obj_clear_state(field, LV_STATE_DISABLED);
+    } else {
+      lv_obj_add_state(field, LV_STATE_DISABLED);
+    }
+  }
+}
+
 static void filamentDropdownCb(lv_event_t *e) {
   updateFilamentButton();
   uint16_t index = lv_dropdown_get_selected(ddFilament);
-  if (index == 0 || index - 1 >= uiFilaments.size()) return; // "(pick to prefill)"
+  if (index == 0 || index - 1 >= uiFilaments.size()) {
+    setFilamentFieldsEnabled(true); // "(pick to prefill)"
+    return;
+  }
+  setFilamentFieldsEnabled(false);
 
   const SpoolmanFilament &filament = uiFilaments[index - 1];
   selectCode(ddMaterial, qidiMaterials, qidiMaterialsCount,
@@ -431,6 +456,8 @@ static void spoolDropdownCb(lv_event_t *e) {
   if (index == 0 || index - 1 >= uiSpools.size()) {
     setNewSpoolFieldsEnabled(true);
     setNumberField(sbSpoolNumber, 0);
+    lv_dropdown_set_selected(ddFilament, 0);
+    updateFilamentButton();
     return;
   }
   const SpoolmanSpool &spool = uiSpools[index - 1];
@@ -457,6 +484,7 @@ static void spoolDropdownCb(lv_event_t *e) {
 }
 
 static void refreshSettingsScreen() {
+  setNumberField(sbSleep, settings.sleepMinutes);
   lv_textarea_set_text(taSpoolmanAddress, settings.spoolmanAddress.c_str());
   if (settings.useSpoolman) {
     lv_obj_add_state(swUseSpoolman, LV_STATE_CHECKED);
@@ -694,6 +722,12 @@ static void buildSettingsScreen() {
   lv_obj_align(swUseSpoolman, LV_ALIGN_TOP_LEFT, 200, 118);
   lv_obj_add_event_cb(swUseSpoolman, useSpoolmanToggleCb, LV_EVENT_VALUE_CHANGED, nullptr);
 
+  lv_obj_t *lblSleep = lv_label_create(scrSettings);
+  lv_label_set_text(lblSleep, T(StrId::SleepTimeout));
+  lv_obj_align(lblSleep, LV_ALIGN_TOP_LEFT, 15, 176);
+  sbSleep = makeNumberField(scrSettings, 340, 166, 120);
+  setNumberField(sbSleep, settings.sleepMinutes);
+
   lv_obj_t *btnReconfigure = lv_btn_create(scrSettings);
   lv_obj_set_size(btnReconfigure, 265, 50);
   lv_obj_align(btnReconfigure, LV_ALIGN_BOTTOM_LEFT, 15, -10);
@@ -839,6 +873,13 @@ int uiSelectedExistingSpoolId() {
   uint16_t index = lv_dropdown_get_selected(ddSpool);
   if (index - 1 >= uiSpools.size()) return -1;
   return uiSpools[index - 1].id;
+}
+
+int uiSelectedFilamentId() {
+  if (!spoolmanModeActive || !uiIsNewSpoolSelected()) return -1;
+  uint16_t index = lv_dropdown_get_selected(ddFilament);
+  if (index == 0 || index - 1 >= uiFilaments.size()) return -1;
+  return uiFilaments[index - 1].id;
 }
 
 int uiSelectedSpoolmanVendorId() {

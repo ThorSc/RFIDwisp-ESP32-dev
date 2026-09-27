@@ -46,6 +46,7 @@ static const char *const keys[(int)StrId::Count] = {
   "error_weight_range",
   "error_spool_number_range",
   "error_vendor_id_range",
+  "sleep_timeout",
 };
 
 static const char *const defaultStrings[(int)StrId::Count] = {
@@ -90,6 +91,7 @@ static const char *const defaultStrings[(int)StrId::Count] = {
   "The weight must be between 0 and 10000 g.",
   "The spool number must be between 0 and 999. Spoolman spool:",
   "The Spoolman vendor ID must be between 0 and 255. Vendor ID:",
+  "Sleep after (min, 0 = off)",
 };
 // clang-format on
 

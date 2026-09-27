@@ -126,10 +126,13 @@ static void resolveSpoolmanFields(FilamentSpool &spool) {
   }
 
   int vendorId = uiSelectedSpoolmanVendorId();
-  int filamentId = vendorId >= 0
-      ? findFilamentId(spoolmanFilaments, vendorId, qidiMaterialName(spool.materialCode),
-                        qidiColorHex(spool.colorCode))
-      : -1;
+  // A filament picked by the user is used as it is; otherwise look one up
+  // from vendor + material + colour.
+  int filamentId = uiSelectedFilamentId();
+  if (filamentId < 0 && vendorId >= 0) {
+    filamentId = findFilamentId(spoolmanFilaments, vendorId, qidiMaterialName(spool.materialCode),
+                                qidiColorHex(spool.colorCode));
+  }
 
   if (filamentId < 0) {
     uiSetStatus(T(StrId::SpoolmanSkipped));
@@ -229,6 +232,7 @@ void setup() {
   settings.load();
 
   displaySetup();
+  displaySetSleepTimeout(settings.sleepMinutes);
   uiInit();
 
   connectWifi();

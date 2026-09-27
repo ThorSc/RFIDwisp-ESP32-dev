@@ -36,6 +36,10 @@ bool uiIsNewSpoolSelected();
 // spool" is selected or Spoolman mode is off.
 int uiSelectedExistingSpoolId();
 
+// The Spoolman filament picked for a new spool (its material, colour and
+// vendor are then fixed); -1 if none is picked.
+int uiSelectedFilamentId();
+
 // The Spoolman vendor id chosen for a new spool (Spoolman mode, "New spool"
 // selected); -1 if none of the cached vendors is selected.
 int uiSelectedSpoolmanVendorId();

@@ -52,6 +52,7 @@ enum class StrId {
   ErrorWeightRange,
   ErrorSpoolNumberRange,
   ErrorVendorIdRange,
+  SleepTimeout,
   Count // sentinel, not a real string
 };
 

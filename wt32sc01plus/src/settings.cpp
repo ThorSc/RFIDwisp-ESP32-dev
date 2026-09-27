@@ -10,6 +10,7 @@ void AppSettings::load() {
   prefs.begin(kNamespace, true);
   spoolmanAddress = prefs.getString("spoolmanAddr", "");
   useSpoolman = prefs.getBool("useSpoolman", false);
+  sleepMinutes = min<uint8_t>(prefs.getUChar("sleepMin", 10), 60);
   prefs.end();
 }
 
@@ -18,5 +19,6 @@ void AppSettings::save() const {
   prefs.begin(kNamespace, false);
   prefs.putString("spoolmanAddr", spoolmanAddress);
   prefs.putBool("useSpoolman", useSpoolman);
+  prefs.putUChar("sleepMin", sleepMinutes);
   prefs.end();
 }

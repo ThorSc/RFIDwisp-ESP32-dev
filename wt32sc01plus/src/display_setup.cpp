@@ -76,9 +76,45 @@ static void lvglFlush(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *col
   lv_disp_flush_ready(drv);
 }
 
+static uint32_t sleepTimeoutMs = 0;
+static uint32_t lastActivityMs = 0;
+static bool sleeping = false;
+static bool swallowTouch = false; // the touch that woke the screen, until released
+
+static void wakeScreen() {
+  sleeping = false;
+  lastActivityMs = millis();
+  digitalWrite(TFT_BL, HIGH);
+}
+
+void displaySetSleepTimeout(uint8_t minutes) {
+  sleepTimeoutMs = (uint32_t)minutes * 60000UL;
+  lastActivityMs = millis();
+  if (sleeping && sleepTimeoutMs == 0) wakeScreen();
+}
+
 static void lvglTouchRead(lv_indev_drv_t *drv, lv_indev_data_t *data) {
   lgfx::touch_point_t tp;
-  if (lcd.getTouch(&tp)) {
+  bool touched = lcd.getTouch(&tp);
+  if (touched) lastActivityMs = millis();
+
+  if (sleeping) {
+    if (touched) {
+      wakeScreen();
+      swallowTouch = true;
+    }
+    data->state = LV_INDEV_STATE_RELEASED;
+    return;
+  }
+  if (swallowTouch) {
+    if (touched) {
+      data->state = LV_INDEV_STATE_RELEASED;
+      return;
+    }
+    swallowTouch = false;
+  }
+
+  if (touched) {
     data->state = LV_INDEV_STATE_PRESSED;
     data->point.x = tp.x;
     data->point.y = tp.y;
@@ -93,6 +129,8 @@ void displaySetup() {
   lcd.setBrightness(200);
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);
+
+  lastActivityMs = millis();
 
   lv_init();
 
@@ -112,5 +150,9 @@ void displaySetup() {
 }
 
 void displayLoop() {
+  if (!sleeping && sleepTimeoutMs > 0 && millis() - lastActivityMs > sleepTimeoutMs) {
+    sleeping = true;
+    digitalWrite(TFT_BL, LOW);
+  }
   lv_timer_handler();
 }
