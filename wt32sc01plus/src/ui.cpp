@@ -1,4 +1,8 @@
 #include "ui.h"
+
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "dev"
+#endif
 #include "board_config.h"
 #include "settings.h"
 #include "strings.h"
@@ -520,6 +524,12 @@ static void buildMainScreen() {
   lv_label_set_text(title, T(StrId::AppTitle));
   lv_obj_set_style_text_font(title, &lv_font_montserrat_24, 0);
   lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 12);
+
+  lv_obj_t *version = lv_label_create(scrMain);
+  lv_label_set_text(version, "v" FIRMWARE_VERSION);
+  lv_obj_set_style_text_font(version, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(version, lv_color_hex(0x808080), 0);
+  lv_obj_align_to(version, title, LV_ALIGN_OUT_RIGHT_BOTTOM, 6, -2);
 
   lv_obj_t *btnSettings = lv_btn_create(scrMain);
   lv_obj_set_size(btnSettings, 50, 40);
