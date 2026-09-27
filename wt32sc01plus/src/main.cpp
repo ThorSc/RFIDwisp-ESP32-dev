@@ -154,9 +154,45 @@ static void resolveSpoolmanFields(FilamentSpool &spool) {
 }
 
 // Called by the edit screen's "Write tag" button.
+// Limits of what fits on the tag, as enforced by the PC app
+// (filament_spool.dart / rfid_tag_panel.dart). Checked before anything is
+// created in Spoolman, so a rejected write leaves no orphan spool behind.
+static bool validateBeforeSpoolman(const FilamentSpool &spool) {
+  if (spool.lastWeightGrams > 10000) {
+    uiSetStatus(T(StrId::ErrorWeightRange));
+    return false;
+  }
+  if (!spoolmanActive()) return true;
+
+  int vendorId = uiSelectedSpoolmanVendorId();
+  if (vendorId > 255) {
+    uiSetStatus((String(T(StrId::ErrorVendorIdRange)) + " " + vendorId).c_str());
+    return false;
+  }
+  int spoolId = uiSelectedExistingSpoolId();
+  if (spoolId > 999) {
+    uiSetStatus((String(T(StrId::ErrorSpoolNumberRange)) + " #" + spoolId).c_str());
+    return false;
+  }
+  return true;
+}
+
 void handleWriteTagRequested() {
   FilamentSpool spool = uiCurrentSpool();
+  if (!validateBeforeSpoolman(spool)) return;
   resolveSpoolmanFields(spool);
+  // Byte 2 only ever holds the QIDI vendor (0 = GENERIC, 1 = QIDI); the
+  // Spoolman vendor lives in byte 13. A Spoolman-linked spool is a
+  // third-party one (GENERIC), an unlinked one is written as QIDI.
+  if (spoolmanActive()) {
+    spool.vendorCode = qidiVendorCode(spool.internalVendorId != 0 ? "GENERIC" : "QIDI");
+  }
+  if (spool.spoolNumber > 999) {
+    // A newly created spool got a number that does not fit; it exists in
+    // Spoolman already, but the tag cannot hold it.
+    uiSetStatus((String(T(StrId::ErrorSpoolNumberRange)) + " #" + spool.spoolNumber).c_str());
+    return;
+  }
 
   uiSetStatus(T(StrId::StatusHoldTag));
   displayLoop();

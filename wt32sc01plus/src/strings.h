@@ -49,6 +49,9 @@ enum class StrId {
   SpoolmanLoadFailed,
   Filament,
   NoFilament,
+  ErrorWeightRange,
+  ErrorSpoolNumberRange,
+  ErrorVendorIdRange,
   Count // sentinel, not a real string
 };
 

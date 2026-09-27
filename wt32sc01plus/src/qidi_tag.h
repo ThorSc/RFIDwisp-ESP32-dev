@@ -36,21 +36,21 @@ constexpr size_t qidiTagLength = 16;
 struct FilamentSpool {
   uint8_t materialCode = 0;
   uint8_t colorCode = 0;
-  uint8_t vendorCode = 0;   // QIDI vendor code; ignored if internalVendorId != 0
+  uint8_t vendorCode = 0;   // QIDI vendor code: 0 = GENERIC, 1 = QIDI
   uint16_t spoolNumber = 0; // 0-999
   uint8_t internalVendorId = 0; // Spoolman vendor id, 0 = none
   uint16_t lastWeightGrams = 0;
 
   // Packs this spool into the 16-byte tag payload (see reader_service.dart /
   // filament_spool.dart for the authoritative layout):
-  //   byte 0: material, byte 1: colour, byte 2: vendor (or Spoolman vendor id)
+  //   byte 0: material, byte 1: colour, byte 2: QIDI vendor (0 GENERIC / 1 QIDI)
   //   bytes 3-10: zero, bytes 11-12: last weight (big-endian)
   //   byte 13: Spoolman vendor id (0 = none), bytes 14-15: spool number (big-endian)
   void toTagBytes(uint8_t out[qidiTagLength]) const {
     memset(out, 0, qidiTagLength);
     out[0] = materialCode;
     out[1] = colorCode;
-    out[2] = internalVendorId != 0 ? internalVendorId : vendorCode;
+    out[2] = vendorCode; // QIDI vendor code only: 0 = GENERIC, 1 = QIDI
     out[11] = (lastWeightGrams >> 8) & 0xFF;
     out[12] = lastWeightGrams & 0xFF;
     out[13] = internalVendorId;

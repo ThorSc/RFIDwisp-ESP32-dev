@@ -36,5 +36,8 @@
   "loading_spoolman_data": "Loading Spoolman data...",
   "spoolman_load_failed": "Could not load Spoolman data.",
   "filament": "Filament",
-  "no_filament": "(pick to prefill)"
+  "no_filament": "(pick to prefill)",
+  "error_weight_range": "The weight must be between 0 and 10000 g.",
+  "error_spool_number_range": "The spool number must be between 0 and 999. Spoolman spool:",
+  "error_vendor_id_range": "The Spoolman vendor ID must be between 0 and 255. Vendor ID:"
 }

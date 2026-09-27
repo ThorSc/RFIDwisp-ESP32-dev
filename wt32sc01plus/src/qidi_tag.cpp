@@ -99,7 +99,13 @@ int qidiVendorCode(const char *name) {
 
 static bool parseHex6(const char *hex, uint8_t &r, uint8_t &g, uint8_t &b) {
   if (hex[0] == '#') hex++;
-  if (strlen(hex) != 6) return false;
+  // Spoolman sometimes sends RRGGBBAA; only the first 6 digits are the colour.
+  if (strlen(hex) < 6) return false;
+  for (int i = 0; i < 6; i++) {
+    char c = hex[i];
+    bool isHex = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+    if (!isHex) return false;
+  }
   char buf[3] = {0, 0, 0};
   buf[0] = hex[0]; buf[1] = hex[1];
   r = (uint8_t)strtol(buf, nullptr, 16);

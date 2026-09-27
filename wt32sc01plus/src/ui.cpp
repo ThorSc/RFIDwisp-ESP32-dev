@@ -32,6 +32,10 @@ static lv_obj_t *lblFilament, *ddFilament; // Spoolman mode, "New spool" only
 static lv_obj_t *btnColor, *lblColorHex; // shows the selected colour; ddColor is hidden state
 static lv_obj_t *colorOverlay;
 static lv_obj_t *lblEditStatus;
+static lv_obj_t *btnSpool, *spoolSwatch, *spoolBtnLabel;          // Spoolman mode; ddSpool is hidden state
+static lv_obj_t *btnFilament, *filamentSwatch, *filamentBtnLabel; // ditto for ddFilament
+static lv_obj_t *pickerOverlay;
+static bool pickerForSpool;
 
 static bool spoolmanModeActive = false;
 static std::vector<SpoolmanVendor> uiVendors;
@@ -195,7 +199,7 @@ static void openNumberOverlay(lv_event_t *e) {
   if (numberOverlay || lv_obj_has_state(target, LV_STATE_DISABLED)) return;
   numberTarget = target;
   bool isWeight = target == sbWeight;
-  numberMax = isWeight ? 65535 : 999;
+  numberMax = isWeight ? 10000 : 999;
 
   numberOverlay = lv_obj_create(lv_layer_top());
   lv_obj_set_size(numberOverlay, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -249,10 +253,159 @@ static void setNewSpoolFieldsEnabled(bool enabled) {
   set(ddMaterial);
   set(btnColor);
   set(ddSpoolmanVendor);
-  set(ddFilament);
+  set(btnFilament);
+}
+
+static void spoolDropdownCb(lv_event_t *e);
+static void filamentDropdownCb(lv_event_t *e);
+
+static bool parseColorHex(const String &hex, uint32_t &rgb) {
+  String h = hex;
+  if (h.startsWith("#")) h.remove(0, 1);
+  if (h.length() < 6) return false;
+  for (int i = 0; i < 6; i++) {
+    if (!isxdigit((unsigned char)h[i])) return false;
+  }
+  rgb = (uint32_t)strtoul(h.substring(0, 6).c_str(), nullptr, 16);
+  return true;
+}
+
+// Text and colour of entry `index` of the Spool (forSpool) or Filament
+// picker; index 0 is "New spool" / "(pick to prefill)" and has no colour.
+static void pickerEntry(bool forSpool, size_t index, String &text, bool &hasColor, uint32_t &rgb) {
+  hasColor = false;
+  if (index == 0) {
+    text = forSpool ? T(StrId::NewSpool) : T(StrId::NoFilament);
+    return;
+  }
+  if (forSpool) {
+    if (index - 1 >= uiSpools.size()) return;
+    const SpoolmanSpool &spool = uiSpools[index - 1];
+    text = "#" + String(spool.id) + " " + spool.material;
+    if (spool.vendorName.length()) text += " (" + spool.vendorName + ")";
+    text += " - " + String(spool.remainingWeightGrams) + "g";
+    hasColor = parseColorHex(spool.colorHex, rgb);
+  } else {
+    if (index - 1 >= uiFilaments.size()) return;
+    const SpoolmanFilament &filament = uiFilaments[index - 1];
+    text = filament.vendorName + " " + filament.material;
+    hasColor = parseColorHex(filament.colorHex, rgb);
+  }
+}
+
+static void paintSwatch(lv_obj_t *swatch, bool hasColor, uint32_t rgb) {
+  lv_obj_set_style_bg_color(swatch, lv_color_hex(hasColor ? rgb : 0x707070), 0);
+  lv_obj_set_style_bg_opa(swatch, hasColor ? LV_OPA_COVER : LV_OPA_40, 0);
+}
+
+static void updateSpoolButton() {
+  String text;
+  bool hasColor;
+  uint32_t rgb = 0;
+  pickerEntry(true, lv_dropdown_get_selected(ddSpool), text, hasColor, rgb);
+  lv_label_set_text(spoolBtnLabel, text.c_str());
+  paintSwatch(spoolSwatch, hasColor, rgb);
+}
+
+static void updateFilamentButton() {
+  String text;
+  bool hasColor;
+  uint32_t rgb = 0;
+  pickerEntry(false, lv_dropdown_get_selected(ddFilament), text, hasColor, rgb);
+  lv_label_set_text(filamentBtnLabel, text.c_str());
+  paintSwatch(filamentSwatch, hasColor, rgb);
+}
+
+static void closePicker() {
+  if (pickerOverlay) {
+    lv_obj_del_async(pickerOverlay);
+    pickerOverlay = nullptr;
+  }
+}
+
+static void pickerItemCb(lv_event_t *e) {
+  uint16_t index = (uint16_t)(uintptr_t)lv_event_get_user_data(e);
+  if (pickerForSpool) {
+    lv_dropdown_set_selected(ddSpool, index);
+    spoolDropdownCb(nullptr);
+  } else {
+    lv_dropdown_set_selected(ddFilament, index);
+    filamentDropdownCb(nullptr);
+  }
+  closePicker();
+}
+
+// One row/button: colour swatch on the left, text on the right.
+static lv_obj_t *makeSwatchButton(lv_obj_t *parent, int width, int height, int textWidth,
+                                  lv_obj_t **swatchOut, lv_obj_t **labelOut) {
+  lv_obj_t *btn = lv_btn_create(parent);
+  lv_obj_set_size(btn, width, height);
+
+  lv_obj_t *swatch = lv_obj_create(btn);
+  lv_obj_set_size(swatch, 24, 24);
+  lv_obj_set_style_radius(swatch, 4, 0);
+  lv_obj_set_style_border_width(swatch, 1, 0);
+  lv_obj_set_style_border_color(swatch, lv_color_hex(0x909090), 0);
+  lv_obj_set_style_pad_all(swatch, 0, 0);
+  lv_obj_clear_flag(swatch, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_clear_flag(swatch, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_align(swatch, LV_ALIGN_LEFT_MID, 0, 0);
+
+  lv_obj_t *label = lv_label_create(btn);
+  lv_obj_set_width(label, textWidth);
+  lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+  lv_obj_align(label, LV_ALIGN_LEFT_MID, 32, 0);
+
+  *swatchOut = swatch;
+  *labelOut = label;
+  return btn;
+}
+
+// Full-screen scrollable list where every entry shows its colour.
+static void openPicker(bool forSpool) {
+  if (pickerOverlay) return;
+  pickerForSpool = forSpool;
+
+  pickerOverlay = lv_obj_create(lv_layer_top());
+  lv_obj_set_size(pickerOverlay, SCREEN_WIDTH, SCREEN_HEIGHT);
+  lv_obj_align(pickerOverlay, LV_ALIGN_TOP_LEFT, 0, 0);
+  lv_obj_set_style_bg_color(pickerOverlay, lv_color_hex(0x202020), 0);
+  lv_obj_set_style_bg_opa(pickerOverlay, LV_OPA_COVER, 0);
+  lv_obj_set_style_border_width(pickerOverlay, 0, 0);
+  lv_obj_set_style_radius(pickerOverlay, 0, 0);
+  lv_obj_set_style_pad_all(pickerOverlay, 0, 0);
+  lv_obj_clear_flag(pickerOverlay, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_event_cb(
+      pickerOverlay,
+      [](lv_event_t *ev) {
+        if (lv_event_get_target(ev) == lv_event_get_current_target(ev)) closePicker();
+      },
+      LV_EVENT_CLICKED, nullptr);
+
+  lv_obj_t *list = lv_obj_create(pickerOverlay);
+  lv_obj_set_size(list, SCREEN_WIDTH - 20, SCREEN_HEIGHT - 20);
+  lv_obj_align(list, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_all(list, 4, 0);
+  lv_obj_set_style_pad_row(list, 4, 0);
+
+  size_t count = 1 + (forSpool ? uiSpools.size() : uiFilaments.size());
+  for (size_t i = 0; i < count; i++) {
+    String text;
+    bool hasColor;
+    uint32_t rgb = 0;
+    pickerEntry(forSpool, i, text, hasColor, rgb);
+
+    lv_obj_t *swatch, *label;
+    lv_obj_t *row = makeSwatchButton(list, SCREEN_WIDTH - 44, 40, SCREEN_WIDTH - 100, &swatch, &label);
+    lv_label_set_text(label, text.c_str());
+    paintSwatch(swatch, hasColor, rgb);
+    lv_obj_add_event_cb(row, pickerItemCb, LV_EVENT_CLICKED, (void *)(uintptr_t)i);
+  }
 }
 
 static void filamentDropdownCb(lv_event_t *e) {
+  updateFilamentButton();
   uint16_t index = lv_dropdown_get_selected(ddFilament);
   if (index == 0 || index - 1 >= uiFilaments.size()) return; // "(pick to prefill)"
 
@@ -269,6 +422,7 @@ static void filamentDropdownCb(lv_event_t *e) {
 }
 
 static void spoolDropdownCb(lv_event_t *e) {
+  updateSpoolButton();
   uint16_t index = lv_dropdown_get_selected(ddSpool);
   if (index == 0 || index - 1 >= uiSpools.size()) {
     setNewSpoolFieldsEnabled(true);
@@ -277,6 +431,14 @@ static void spoolDropdownCb(lv_event_t *e) {
   }
   const SpoolmanSpool &spool = uiSpools[index - 1];
   setNumberField(sbSpoolNumber, spool.id);
+  lv_dropdown_set_selected(ddFilament, 0);
+  for (size_t i = 0; i < uiFilaments.size(); i++) {
+    if (uiFilaments[i].id == spool.filamentId) {
+      lv_dropdown_set_selected(ddFilament, i + 1);
+      break;
+    }
+  }
+  updateFilamentButton();
   selectCode(ddMaterial, qidiMaterials, qidiMaterialsCount,
              closestQidiMaterialCode(spool.material.c_str()));
   selectColorCode(closestQidiColorCode(spool.colorHex.c_str()));
@@ -415,6 +577,11 @@ static void buildEditScreen() {
   lv_obj_align(ddSpool, LV_ALIGN_TOP_LEFT, leftX, rowY[0] + controlDy);
   lv_dropdown_set_options(ddSpool, T(StrId::NewSpool));
   lv_obj_add_event_cb(ddSpool, spoolDropdownCb, LV_EVENT_VALUE_CHANGED, nullptr);
+  lv_obj_add_flag(ddSpool, LV_OBJ_FLAG_HIDDEN); // holds the selection; never shown
+  btnSpool = makeSwatchButton(scrEdit, colW, 38, colW - 44, &spoolSwatch, &spoolBtnLabel);
+  lv_obj_align(btnSpool, LV_ALIGN_TOP_LEFT, leftX, rowY[0] + controlDy);
+  lv_obj_add_event_cb(btnSpool, [](lv_event_t *e) { openPicker(true); }, LV_EVENT_CLICKED, nullptr);
+  updateSpoolButton();
 
   lblFilament = makeLabel(rightX, rowY[0], T(StrId::Filament));
   ddFilament = lv_dropdown_create(scrEdit);
@@ -422,6 +589,11 @@ static void buildEditScreen() {
   lv_obj_align(ddFilament, LV_ALIGN_TOP_LEFT, rightX, rowY[0] + controlDy);
   lv_dropdown_set_options(ddFilament, T(StrId::NoFilament));
   lv_obj_add_event_cb(ddFilament, filamentDropdownCb, LV_EVENT_VALUE_CHANGED, nullptr);
+  lv_obj_add_flag(ddFilament, LV_OBJ_FLAG_HIDDEN); // holds the selection; never shown
+  btnFilament = makeSwatchButton(scrEdit, colW, 38, colW - 44, &filamentSwatch, &filamentBtnLabel);
+  lv_obj_align(btnFilament, LV_ALIGN_TOP_LEFT, rightX, rowY[0] + controlDy);
+  lv_obj_add_event_cb(btnFilament, [](lv_event_t *e) { openPicker(false); }, LV_EVENT_CLICKED, nullptr);
+  updateFilamentButton();
 
   // Row 2
   makeLabel(leftX, rowY[1], T(StrId::Material));
@@ -563,6 +735,7 @@ void uiShowSpool(const FilamentSpool &spool) {
     // writing back does not create a duplicate; otherwise leave "New spool"
     // selected with the tag's own fields as a manual fallback.
     lv_dropdown_set_selected(ddSpool, 0);
+    updateSpoolButton();
     setNewSpoolFieldsEnabled(true);
     for (size_t i = 0; i < uiSpools.size(); i++) {
       if (uiSpools[i].id == spool.spoolNumber) {
@@ -580,6 +753,7 @@ void uiShowEditScreenForWrite() {
   if (spoolmanModeActive) {
     setNumberField(sbSpoolNumber, 0);
     lv_dropdown_set_selected(ddSpool, 0);
+    updateSpoolButton();
     setNewSpoolFieldsEnabled(true);
   }
   lv_scr_load(scrEdit);
@@ -599,9 +773,9 @@ void uiSetSpoolmanMode(bool active) {
   show(ddVendor, !active);
   show(ddSpoolmanVendor, active);
   show(lblSpoolRow, active);
-  show(ddSpool, active);
+  show(btnSpool, active);
   show(lblFilament, active);
-  show(ddFilament, active);
+  show(btnFilament, active);
 
   // In Spoolman mode the number comes from the selected/created spool.
   if (active) {
@@ -642,6 +816,8 @@ void uiSetSpoolmanLists(const std::vector<SpoolmanVendor> &vendors,
   }
   lv_dropdown_set_options(ddFilament, filamentOptions.c_str());
   lv_dropdown_set_selected(ddFilament, 0);
+  updateSpoolButton();
+  updateFilamentButton();
 }
 
 bool uiIsNewSpoolSelected() {
@@ -656,7 +832,16 @@ int uiSelectedExistingSpoolId() {
 }
 
 int uiSelectedSpoolmanVendorId() {
-  if (!spoolmanModeActive || uiVendors.empty()) return -1;
+  if (!spoolmanModeActive) return -1;
+  if (!uiIsNewSpoolSelected()) {
+    // An existing spool brings its own vendor, whatever the dropdown shows.
+    uint16_t spoolIndex = lv_dropdown_get_selected(ddSpool);
+    if (spoolIndex - 1 < uiSpools.size() && uiSpools[spoolIndex - 1].vendorId > 0) {
+      return uiSpools[spoolIndex - 1].vendorId;
+    }
+    return -1;
+  }
+  if (uiVendors.empty()) return -1;
   uint16_t index = lv_dropdown_get_selected(ddSpoolmanVendor);
   if (index >= uiVendors.size()) return -1;
   return uiVendors[index].id;
@@ -671,7 +856,8 @@ FilamentSpool uiCurrentSpool() {
   if (spoolmanModeActive) {
     // spoolNumber/internalVendorId/vendorCode are resolved by main.cpp
     // (existing spool id, or a newly created one) after this call.
-    spool.vendorCode = qidiVendorCode("GENERIC");
+    // Without a linked Spoolman vendor the tag carries the QIDI vendor code.
+    spool.vendorCode = qidiVendorCode("QIDI");
     spool.internalVendorId = 0;
     spool.spoolNumber = 0;
   } else {

@@ -43,6 +43,9 @@ static const char *const keys[(int)StrId::Count] = {
   "spoolman_load_failed",
   "filament",
   "no_filament",
+  "error_weight_range",
+  "error_spool_number_range",
+  "error_vendor_id_range",
 };
 
 static const char *const defaultStrings[(int)StrId::Count] = {
@@ -84,6 +87,9 @@ static const char *const defaultStrings[(int)StrId::Count] = {
   "Could not load Spoolman data.",
   "Filament",
   "(pick to prefill)",
+  "The weight must be between 0 and 10000 g.",
+  "The spool number must be between 0 and 999. Spoolman spool:",
+  "The Spoolman vendor ID must be between 0 and 255. Vendor ID:",
 };
 // clang-format on
 
