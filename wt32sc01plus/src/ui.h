@@ -1,7 +1,5 @@
 #pragma once
-#include "moonraker_client.h"
 #include "qidi_tag.h"
-#include "settings.h"
 #include "spoolman_client.h"
 #include <vector>
 
@@ -48,21 +46,6 @@ void uiSetStatus(const char *text);
 // Updates the Wi-Fi status line shown on the settings screen.
 void uiSetWifiStatus(const char *text);
 
-// Shows the QIDI Data screen and asks main.cpp (via handleQidiScreenOpened,
-// implemented there) to check the printer and load box 1.
-void uiShowQidiScreen();
-
-// Updates the printer connection status line on the QIDI Data screen.
-void uiSetQidiPrinterStatus(const char *text);
-
-// Fills the printer selector; selectedId picks which one shows as current.
-void uiSetQidiPrinterList(const std::vector<Printer> &printers, const String &selectedId);
-
-// Fills the box selector (1..boxCount); boxCount 0 shows no boxes at all.
-void uiSetQidiBoxCount(int boxCount);
-
-// Updates the 4 visible slot rows for the currently selected box.
-void uiSetQidiSlots(const QidiSlot slots[4]);
 
 // Reads the edit screen's fields back into a spool, for writing to a tag.
 FilamentSpool uiCurrentSpool();

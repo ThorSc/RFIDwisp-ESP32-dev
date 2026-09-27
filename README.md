@@ -9,7 +9,7 @@ whenever a push to `master` carries a new `VERSION` (see "Releasing" below).
 Standalone firmware for the WT32-SC01 Plus (ESP32-S3, 3.5" ST7796 touch
 display) plus an external PN532 RFID module: a from-scratch, feature-equivalent
 reimplementation of the [Flutter RFIDwisp app](../RFIDwisp-dev) that runs
-without a PC, talking to Moonraker and Spoolman over Wi-Fi.
+without a PC, talking to Spoolman over Wi-Fi.
 
 This is a reimplementation, not a port: Flutter cannot run on a bare
 microcontroller (no Linux/GPU), so the UI is built with LVGL. The tag format
@@ -31,7 +31,7 @@ wt32sc01plus/
     display_setup.*       LovyanGFX + LVGL bring-up for the ST7796/FT6336
     pn532_reader.*         PN532 wrapper: find tag, authenticate, read/write
     qidi_tag.*              Material/colour/vendor tables + 16-byte encoding
-    settings.*               Moonraker/Spoolman/printer settings, in NVS
+    settings.*               Spoolman settings, in NVS
     strings.*                 UI text lookup with optional LittleFS override
     wifi_setup.*               Wi-Fi captive-portal provisioning
     ui.*                        LVGL screens (main, spool edit, settings)
@@ -40,20 +40,15 @@ wt32sc01plus/
 
 ## Wiring
 
-- **Display + touch**: on-board, wired internally on the WT32-SC01 Plus.
-  Pin numbers in `board_config.h` match the vendor's own demo firmware for
-  the "Plus" revision, but different production batches have shipped with
-  different pinouts - if the screen stays blank or touch does not respond,
-  compare against your board's silkscreen or seller's demo project first.
-- **PN532**: external module, wired to a *second* I2C bus (`Wire1`) on two
-  free GPIOs from the expansion header, since the on-board bus is already
+- **Display + touch**: on-board. The ST7796 display uses an 8-bit parallel
+  (i80) bus, not SPI; the pins in `board_config.h` are verified against the
+  board's datasheet and confirmed working on hardware.
+- **PN532**: external module in I2C mode (set its mode switches/jumpers to
+  **I2C**), wired to a *second* I2C bus (`Wire1`) since the on-board bus is
   used by the touch controller. Defaults in `board_config.h`:
-  - `PN532_SDA` = GPIO 32, `PN532_SCL` = GPIO 33
-  - `PN532_IRQ` = GPIO 27, `PN532_RESET` = GPIO 26
-  - Set the PN532 module's mode switches/jumpers to **I2C**.
-  - Re-check these four pins against your board's header before wiring -
-    they were picked as commonly-free pins on the Plus, not verified against
-    a specific unit.
+  - `PN532_SDA` = GPIO 10, `PN532_SCL` = GPIO 11 (expansion header)
+  - IRQ and RESET are not wired (polling mode). GPIO 26-32 cannot be used on
+    the ESP32-S3 (flash/PSRAM).
 
 ## Building
 
@@ -76,14 +71,12 @@ a captive-portal page should open automatically (or browse to
 `http://192.168.4.1`). Enter:
 
 - your home Wi-Fi SSID and password,
-- **Printer name** (label only, shown in the UI),
-- **Moonraker address** (e.g. `http://192.168.1.50:7125`),
 - **Spoolman address** (e.g. `http://spoolman.local:7912`; leave empty to
   skip Spoolman - it can be turned back on/off later in Settings without
   re-running the portal).
 
 The device reboots into your network. Wi-Fi credentials are stored by the
-WiFiManager library in its own NVS namespace; Moonraker/Spoolman
+WiFiManager library in its own NVS namespace; the Spoolman
 settings are stored separately (see `settings.h`) and are not erased by
 "Reconfigure network" (only the Wi-Fi credentials are).
 
@@ -111,14 +104,8 @@ No firmware rebuild needed to change or remove the override afterwards.
 - **Write tag**: opens the spool edit screen (material, colour, vendor,
   spool number, weight as dropdowns/spinboxes), then writes the encoded 16
   bytes to block 4 and reads them back to confirm.
-- **Settings screen**: shows Wi-Fi status and the configured Moonraker/
-  Spoolman addresses, a "Use Spoolman" toggle, and "Reconfigure network".
-- **QIDI Data screen**: Moonraker REST client (`GET .../printer/objects/query`
-  for `multi_color_controller` and the optional `rfid_bridge` extra), printer
-  connection status, a box selector (1..box_count) and the 4 slot rows for
-  the selected box (colour-coded empty/loaded/active dot, material, vendor,
-  colour, Spoolman spool number/vendor name/remaining weight when Spoolman is
-  active) - mirrors `qidi_data_panel.dart`.
+- **Settings screen**: shows Wi-Fi status and the configured Spoolman
+  address, a "Use Spoolman" toggle, and "Reconfigure network".
 - **Spoolman-integrated write/edit screen**: when Spoolman is active, the
   edit screen's Vendor + Spool number fields are replaced by a **Spool**
   selector ("New spool" + every cached Spoolman spool) and a **Spoolman
@@ -138,35 +125,28 @@ No firmware rebuild needed to change or remove the override afterwards.
     (Spoolman-unlinked) tag write and reports that in the status line -
     same "skip, don't fail" behaviour as `_createSpoolmanSpool`.
 
-- **Multi-printer settings**: Settings -> "Manage printers" lists all saved
-  printers (id/name/Moonraker address, matching `printer.dart`) with New/
-  Save/Delete, using the on-screen keyboard for name/address entry. The
-  Wi-Fi captive portal still only sets up the *first* printer (for a
-  friction-free initial boot); further printers are added on-device. The
-  QIDI Data screen now has its own printer selector above the box selector,
-  switching which Moonraker instance is queried.
 - **Filament dropdown** on the edit screen (Spoolman mode, "New spool" only):
   picking one of the cached Spoolman filaments prefills Material/Colour/
   Spoolman vendor from it (weight is still entered manually) - mirrors
   `rfid_tag_panel.dart`'s second dropdown for reusing an existing filament
   when creating a spool.
 
-This firmware now covers the Flutter app's full core feature set (RFID tag
-read/write, Spoolman-linked spool creation/reuse, QIDI Data box/slot view,
-multi-printer settings) minus the explicitly out-of-scope items below.
+The UI runs in landscape (480x320).
 
-Deliberately out of scope (per product decision): QR code / PDF label
-printing (`qr_code_panel.dart`, `label_pdf.dart`, `label_output.dart` - no
-printer or file export on this device), the desktop window auto-sizer, and
-the GitHub-release update checker.
+Deliberately out of scope (per product decision): Moonraker / printer
+integration (the Flutter app's QIDI Data panel and printer management), QR
+code / PDF label printing (`qr_code_panel.dart`, `label_pdf.dart`,
+`label_output.dart` - no printer or file export on this device), the
+desktop window auto-sizer, and the GitHub-release update checker.
 
 ## Known limitations of the current state
 
 - PN532 access and the Wi-Fi portal are synchronous: the touchscreen is
   unresponsive while either runs. Fine for the explicit, occasional actions
   they're used for so far; a background FreeRTOS task would be needed before
-  adding anything longer-running (e.g. live Moonraker polling).
-- Not flashed/tested on real hardware yet by this session - review pin
+  adding anything longer-running.
+- Display flashed and confirmed on hardware; PN532 wiring, touch and the
+  Wi-Fi/Spoolman flows are not yet tested on the device - review pin
   assignments and library versions before relying on it.
 
 ## Releasing

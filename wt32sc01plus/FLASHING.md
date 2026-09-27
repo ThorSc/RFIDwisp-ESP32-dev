@@ -33,7 +33,7 @@ If you have the source checked out and PlatformIO installed, `pio run -t
 upload` flashes all of this automatically at the right offsets - no need to
 handle the four files by hand.
 
-## Wi-Fi and printer setup
+## Wi-Fi setup
 
 After flashing, the device opens a **RFIDwisp-Setup** Wi-Fi access point on
 first boot. See the main README ("First boot / Wi-Fi setup") for the

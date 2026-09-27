@@ -7,31 +7,35 @@
 
 class LGFX : public lgfx::LGFX_Device {
   lgfx::Panel_ST7796 _panel_instance;
-  lgfx::Bus_SPI _bus_instance;
+  lgfx::Bus_Parallel8 _bus_instance;
   lgfx::Touch_FT5x06 _touch_instance; // FT6336 shares the FT5x06 protocol
 
 public:
   LGFX() {
     {
       auto cfg = _bus_instance.config();
-      cfg.spi_host = SPI2_HOST;
-      cfg.spi_mode = 0;
-      cfg.freq_write = 40000000;
-      cfg.freq_read = 16000000;
-      cfg.pin_sclk = TFT_SCLK;
-      cfg.pin_mosi = TFT_MOSI;
-      cfg.pin_miso = -1;
-      cfg.pin_dc = TFT_DC;
+      cfg.freq_write = 20000000;
+      cfg.pin_wr = TFT_WR;
+      cfg.pin_rd = TFT_RD;
+      cfg.pin_rs = TFT_RS;
+      cfg.pin_d0 = TFT_D0;
+      cfg.pin_d1 = TFT_D1;
+      cfg.pin_d2 = TFT_D2;
+      cfg.pin_d3 = TFT_D3;
+      cfg.pin_d4 = TFT_D4;
+      cfg.pin_d5 = TFT_D5;
+      cfg.pin_d6 = TFT_D6;
+      cfg.pin_d7 = TFT_D7;
       _bus_instance.config(cfg);
       _panel_instance.setBus(&_bus_instance);
     }
     {
       auto cfg = _panel_instance.config();
-      cfg.pin_cs = TFT_CS;
+      cfg.pin_cs = -1;
       cfg.pin_rst = TFT_RST;
       cfg.pin_busy = -1;
-      cfg.panel_width = SCREEN_WIDTH;
-      cfg.panel_height = SCREEN_HEIGHT;
+      cfg.panel_width = PANEL_WIDTH;
+      cfg.panel_height = PANEL_HEIGHT;
       cfg.readable = false;
       cfg.invert = true;
       _panel_instance.config(cfg);
@@ -39,9 +43,9 @@ public:
     {
       auto cfg = _touch_instance.config();
       cfg.x_min = 0;
-      cfg.x_max = SCREEN_WIDTH - 1;
+      cfg.x_max = PANEL_WIDTH - 1;
       cfg.y_min = 0;
-      cfg.y_max = SCREEN_HEIGHT - 1;
+      cfg.y_max = PANEL_HEIGHT - 1;
       cfg.pin_int = TOUCH_INT;
       cfg.pin_rst = TOUCH_RST;
       cfg.pin_sda = TOUCH_SDA;
@@ -85,6 +89,7 @@ static void lvglTouchRead(lv_indev_drv_t *drv, lv_indev_data_t *data) {
 
 void displaySetup() {
   lcd.init();
+  lcd.setRotation(1);
   lcd.setBrightness(200);
   pinMode(TFT_BL, OUTPUT);
   digitalWrite(TFT_BL, HIGH);

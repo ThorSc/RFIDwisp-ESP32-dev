@@ -2,7 +2,6 @@
 #include <WiFi.h>
 #include <vector>
 #include "display_setup.h"
-#include "moonraker_client.h"
 #include "pn532_reader.h"
 #include "qidi_tag.h"
 #include "settings.h"
@@ -12,7 +11,6 @@
 #include "wifi_setup.h"
 
 static Pn532Reader reader;
-static int currentBox = 1;
 
 // Cached Spoolman data, refreshed whenever the write screen (or a tag read)
 // is about to show it. filaments is only used internally here (matching a
@@ -40,11 +38,11 @@ static bool refreshSpoolmanData() {
   uiSetStatus(T(StrId::LoadingSpoolmanData));
   displayLoop();
 
-  bool ok = spoolmanGetVendors(settings.spoolmanAddress, spoolmanVendors).ok &&
-            spoolmanGetFilaments(settings.spoolmanAddress, spoolmanFilaments).ok &&
-            spoolmanGetSpools(settings.spoolmanAddress, spoolmanSpools).ok;
-  if (!ok) {
-    uiSetStatus(T(StrId::SpoolmanLoadFailed));
+  SpoolmanResult result = spoolmanGetVendors(settings.spoolmanAddress, spoolmanVendors);
+  if (result.ok) result = spoolmanGetFilaments(settings.spoolmanAddress, spoolmanFilaments);
+  if (result.ok) result = spoolmanGetSpools(settings.spoolmanAddress, spoolmanSpools);
+  if (!result.ok) {
+    uiSetStatus((String(T(StrId::SpoolmanLoadFailed)) + " " + result.error).c_str());
     return false;
   }
 
@@ -97,7 +95,7 @@ void handleReadTagRequested() {
   bool active = refreshSpoolmanData();
   uiSetSpoolmanMode(active);
 
-  uiSetStatus(T(StrId::TagRead));
+  if (active || !spoolmanActive()) uiSetStatus(T(StrId::TagRead));
   uiShowSpool(spool);
 }
 
@@ -108,7 +106,7 @@ void handleWriteScreenOpened() {
   lastReadSpoolNumber = -1;
   bool active = refreshSpoolmanData();
   uiSetSpoolmanMode(active);
-  uiSetStatus(T(StrId::Ready));
+  if (active || !spoolmanActive()) uiSetStatus(T(StrId::Ready));
   uiShowEditScreenForWrite();
 }
 
@@ -173,96 +171,6 @@ void handleWriteTagRequested() {
   TagResult result = reader.writeSpoolBytes(raw);
   uiSetStatus(result == TagResult::Ok ? T(StrId::TagWritten) : tagResultMessage(result));
 }
-
-static void readQidiBox(int boxNumber) {
-  Printer *printer = settings.activePrinter();
-  if (!printer) return;
-
-  QidiSlot slots[4];
-  MoonrakerResult result = moonrakerGetBoxSlots(printer->address, boxNumber, slots);
-  if (!result.ok) {
-    uiSetQidiPrinterStatus((String(T(StrId::PrinterNotConnected)) + ": " + result.error).c_str());
-    return;
-  }
-  uiSetQidiPrinterStatus(T(StrId::PrinterConnected));
-
-  // Spoolman vendor-name/weight lookups (rfid_bridge only reports the
-  // Spoolman spool/vendor ids, not their names or current weight).
-  if (spoolmanActive()) {
-    std::vector<SpoolmanVendor> vendors;
-    spoolmanGetVendors(settings.spoolmanAddress, vendors); // best-effort; ignore failure
-    for (int i = 0; i < 4; i++) {
-      QidiSlot &slot = slots[i];
-      if (slot.internalVendorId >= 0) {
-        for (const SpoolmanVendor &vendor : vendors) {
-          if (vendor.id == slot.internalVendorId) {
-            slot.spoolmanVendorName = vendor.name;
-            break;
-          }
-        }
-      }
-      if (slot.spoolNumber >= 0) {
-        int weight = spoolmanGetRemainingWeight(settings.spoolmanAddress, slot.spoolNumber);
-        if (weight >= 0) slot.weightGrams = weight;
-      }
-    }
-  }
-
-  uiSetQidiSlots(slots);
-}
-
-// Called by the QIDI Data screen when it is opened, and whenever the printer
-// selector on it changes.
-void handleQidiScreenOpened() {
-  uiSetQidiPrinterList(settings.printers, settings.selectedPrinterId);
-
-  Printer *printer = settings.activePrinter();
-  if (!printer || printer->address.length() == 0) {
-    uiSetQidiPrinterStatus(T(StrId::NoMoonrakerConfigured));
-    uiSetQidiBoxCount(0);
-    return;
-  }
-
-  uiSetQidiPrinterStatus(T(StrId::PrinterChecking));
-  displayLoop();
-
-  int boxCount;
-  bool connected;
-  MoonrakerResult result = moonrakerGetBoxCount(printer->address, boxCount, connected);
-  if (!result.ok) {
-    uiSetQidiPrinterStatus((String(T(StrId::PrinterNotConnected)) + ": " + result.error).c_str());
-    uiSetQidiBoxCount(0);
-    return;
-  }
-  if (!connected) {
-    uiSetQidiPrinterStatus(T(StrId::PrinterNotConnected));
-    uiSetQidiBoxCount(0);
-    return;
-  }
-
-  uiSetQidiPrinterStatus(T(StrId::PrinterConnected));
-  uiSetQidiBoxCount(boxCount);
-  if (boxCount > 0) {
-    currentBox = 1;
-    readQidiBox(currentBox);
-  }
-}
-
-// Called by the QIDI Data screen's printer dropdown.
-void handleQidiPrinterSelected(const String &printerId) {
-  settings.selectedPrinterId = printerId;
-  settings.save();
-  handleQidiScreenOpened();
-}
-
-// Called by the QIDI Data screen's box dropdown.
-void handleQidiBoxSelected(int boxNumber) {
-  currentBox = boxNumber;
-  readQidiBox(currentBox);
-}
-
-// Called by the QIDI Data screen's "Read box" button.
-void handleQidiReadBoxRequested() { readQidiBox(currentBox); }
 
 static void connectWifi() {
   uiSetStatus("Connecting to Wi-Fi...");

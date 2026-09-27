@@ -1,6 +1,7 @@
 #include "spoolman_client.h"
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#include <WiFi.h>
 
 static const uint32_t kTimeoutMs = 5000;
 
@@ -18,6 +19,9 @@ static SpoolmanResult httpJson(const String &method, const String &url,
   if (method == "POST") http.addHeader("Content-Type", "application/json");
 
   int status = method == "POST" ? http.POST(body) : http.GET();
+  Serial.printf("[spoolman] %s %s -> %d (wifi=%d ip=%s gw=%s rssi=%d)\n", method.c_str(),
+                url.c_str(), status, (int)WiFi.status(), WiFi.localIP().toString().c_str(),
+                WiFi.gatewayIP().toString().c_str(), WiFi.RSSI());
   if (status <= 0) {
     result.error = "No response: " + http.errorToString(status);
     http.end();
@@ -45,6 +49,19 @@ static String normalizeColor(const String &hex) {
   if (value.startsWith("#")) value = value.substring(1);
   value.toUpperCase();
   return value;
+}
+
+// Spoolman sends weights as floats (e.g. 850.5): read them as float, not int.
+// remaining_weight if present, else initial_weight - used_weight; 0 if unknown.
+static int spoolWeightGrams(JsonVariantConst spool) {
+  JsonVariantConst remaining = spool["remaining_weight"];
+  if (!remaining.isNull()) return (int)(remaining.as<float>() + 0.5f);
+  JsonVariantConst initial = spool["initial_weight"];
+  if (!initial.isNull()) {
+    float value = initial.as<float>() - (float)(spool["used_weight"] | 0.0f);
+    return value > 0 ? (int)(value + 0.5f) : 0;
+  }
+  return 0;
 }
 
 SpoolmanResult spoolmanGetVendors(const String &address, std::vector<SpoolmanVendor> &out) {
@@ -95,8 +112,7 @@ SpoolmanResult spoolmanGetSpools(const String &address, std::vector<SpoolmanSpoo
     spool.colorHex = (const char *)(filament["color_hex"] | "");
     spool.vendorId = filament["vendor"]["id"] | 0;
     spool.vendorName = (const char *)(filament["vendor"]["name"] | "");
-    int remaining = item["remaining_weight"] | -1;
-    spool.remainingWeightGrams = remaining >= 0 ? remaining : (int)(item["weight"] | 0);
+    spool.remainingWeightGrams = spoolWeightGrams(item);
     out.push_back(spool);
   }
   return result;
@@ -107,9 +123,7 @@ int spoolmanGetRemainingWeight(const String &address, int spoolId) {
   SpoolmanResult result =
       httpJson("GET", address + "/api/v1/spool/" + String(spoolId), "", doc);
   if (!result.ok) return -1;
-  int remaining = doc["remaining_weight"] | -1;
-  if (remaining >= 0) return remaining;
-  return doc["weight"] | -1;
+  return spoolWeightGrams(doc.as<JsonVariantConst>());
 }
 
 int findFilamentId(const std::vector<SpoolmanFilament> &filaments, int vendorId,
