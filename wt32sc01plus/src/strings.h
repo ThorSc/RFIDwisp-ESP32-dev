@@ -34,7 +34,7 @@ enum class StrId {
   TagBlank,
   TagRead,
   TagWritten,
-  Pn532NotFound,
+  Rc522NotFound,
   WifiStatus,
   SpoolmanAddress,
   UseSpoolman,

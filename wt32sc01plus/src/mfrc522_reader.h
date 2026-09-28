@@ -11,7 +11,7 @@ enum class TagResult {
   WriteFailed,
 };
 
-class Pn532Reader {
+class Mfrc522Reader {
 public:
   bool begin();
 
@@ -28,6 +28,5 @@ public:
 private:
   bool authenticateSector1();
 
-  uint8_t _uid[7] = {0};
-  uint8_t _uidLength = 0;
+  bool _tagPresent = false;
 };

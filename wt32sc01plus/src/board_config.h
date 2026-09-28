@@ -32,14 +32,16 @@
 #define SCREEN_HEIGHT 320
 
 // -----------------------------------------------------------------------
-// PN532 wiring (external module, I2C mode) on a second I2C bus (Wire1),
-// separate from the on-board touch controller's bus. GPIO 26-32 are used by
-// flash/PSRAM on the ESP32-S3 and cannot be used; 10/11 are on the board's
-// expansion header. Re-check against your board's silkscreen.
+// RC522 wiring (external module, SPI mode) on a dedicated SPI bus, separate
+// from the on-board display's i80 bus. GPIO 26-32 are used by flash/PSRAM on
+// the ESP32-S3 and cannot be used; 10-14 are on the board's expansion
+// header. Re-check against your board's silkscreen.
 //
-// PN532 module jumpers/switches must be set to I2C mode.
+// RST is optional: tie the module's RST pin to 3.3V instead and set
+// RC522_RST to -1 if you don't want to wire it up.
 // -----------------------------------------------------------------------
-#define PN532_SDA 10
-#define PN532_SCL 11
-#define PN532_IRQ -1   // not wired; polling mode is used
-#define PN532_RESET -1 // not wired
+#define RC522_SCK 12
+#define RC522_MISO 13
+#define RC522_MOSI 11
+#define RC522_SS 10
+#define RC522_RST 14

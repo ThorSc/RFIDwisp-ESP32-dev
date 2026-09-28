@@ -2,7 +2,7 @@
 #include <WiFi.h>
 #include <vector>
 #include "display_setup.h"
-#include "pn532_reader.h"
+#include "mfrc522_reader.h"
 #include "qidi_tag.h"
 #include "settings.h"
 #include "spoolman_client.h"
@@ -10,7 +10,7 @@
 #include "ui.h"
 #include "wifi_setup.h"
 
-static Pn532Reader reader;
+static Mfrc522Reader reader;
 
 // Cached Spoolman data, refreshed whenever the write screen (or a tag read)
 // is about to show it. filaments is only used internally here (matching a
@@ -238,7 +238,7 @@ void setup() {
   connectWifi();
 
   if (!reader.begin()) {
-    uiSetStatus(T(StrId::Pn532NotFound));
+    uiSetStatus(T(StrId::Rc522NotFound));
   } else {
     uiSetStatus(T(StrId::Ready));
   }

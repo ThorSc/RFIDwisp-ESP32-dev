@@ -22,7 +22,7 @@
   "tag_blank": "Tag is blank (not written).",
   "tag_read": "Tag read.",
   "tag_written": "Tag written.",
-  "pn532_not_found": "PN532 not found - check wiring.",
+  "rc522_not_found": "RC522 not found - check wiring.",
   "wifi_status": "Wi-Fi status",
   "spoolman_address": "Spoolman address",
   "use_spoolman": "Use Spoolman",

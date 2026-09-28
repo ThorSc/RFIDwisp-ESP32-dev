@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 
-// Implemented in main.cpp: performs the actual PN532 read/write and calls
+// Implemented in main.cpp: performs the actual RC522 read/write and calls
 // uiSetStatus() / uiShowSpool() with the result.
 void handleReadTagRequested();
 void handleWriteTagRequested();
