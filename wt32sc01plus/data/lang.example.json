@@ -1,5 +1,5 @@
 {
-  "app_title": "RFID Wisp ESP32 Terminal",
+  "app_title": "RFID Wisp Terminal",
   "ready": "Ready.",
   "status_hold_tag": "Please place a tag...",
   "read_tag": "Read tag",

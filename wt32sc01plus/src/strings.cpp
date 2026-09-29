@@ -52,7 +52,7 @@ static const char *const keys[(int)StrId::Count] = {
 };
 
 static const char *const defaultStrings[(int)StrId::Count] = {
-  "RFID Wisp ESP32 Terminal",
+  "RFID Wisp Terminal",
   "Ready.",
   "Please place a tag...",
   "Read tag",
