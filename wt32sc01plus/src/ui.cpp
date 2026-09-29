@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "strings.h"
 #include <Arduino.h>
+#include <algorithm>
 #include <lvgl.h>
 #include <stdio.h>
 #include <string.h>
@@ -835,6 +836,11 @@ void uiSetSpoolmanLists(const std::vector<SpoolmanVendor> &vendors,
   uiVendors = vendors;
   uiSpools = spools;
   uiFilaments = filaments;
+  // Newest spool first (highest Spoolman id on top), same as the Flutter
+  // app's spool dropdown. All lookups below match by id, so this sort
+  // doesn't affect anything but display order.
+  std::sort(uiSpools.begin(), uiSpools.end(),
+            [](const SpoolmanSpool &a, const SpoolmanSpool &b) { return a.id > b.id; });
 
   String vendorOptions;
   for (size_t i = 0; i < uiVendors.size(); i++) {
