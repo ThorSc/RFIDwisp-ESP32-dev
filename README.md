@@ -2,9 +2,11 @@
 
 ## Downloads
 
-Prebuilt firmware is published as a release to the public distribution repo
+Prebuilt firmware is published as a release to the distribution repo
 [`ThorSc/RFIDwisp-ESP32`](https://github.com/ThorSc/RFIDwisp-ESP32/releases/latest)
 whenever a push to `master` carries a new `VERSION` (see "Releasing" below).
+This repo is the source those releases are built from (see "License" below
+for why it's public: two statically-linked dependencies are LGPL-2.1).
 
 Standalone firmware for the WT32-SC01 Plus (ESP32-S3, 3.5" ST7796 touch
 display) plus an external PN532 RFID module: a from-scratch, feature-equivalent

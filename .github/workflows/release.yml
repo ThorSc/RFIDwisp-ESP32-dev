@@ -6,9 +6,13 @@ name: Build and publish release
 # v<version> yet, the firmware is built and published as that release (and
 # the source commit is tagged v<version>); if it already has one, the run
 # stops after the first job and builds nothing. So a release happens by
-# bumping VERSION and pushing. The private source repo is never made
-# public - only the built firmware is uploaded as a GitHub Release in the
-# distribution repo. Each release also bundles LICENSE/THIRD-PARTY-LICENSES.md,
+# bumping VERSION and pushing. This source repo is public too (required for
+# LGPL-2.1 compliance: the Arduino-ESP32 core and Arduino_MFRC522v2 are
+# statically linked into the firmware and need the full "work that uses the
+# library" source available for relinking - see THIRD-PARTY-LICENSES.md) but
+# the built firmware is also mirrored as a GitHub Release in the distribution
+# repo for a friendlier download experience. Each release bundles
+# LICENSE/THIRD-PARTY-LICENSES.md,
 # and those two files are additionally synced to the distribution repo's root
 # (not just the release zip) so GitHub's license detection picks them up.
 #
@@ -25,8 +29,8 @@ name: Build and publish release
 #      scope (see RFIDwisp-dev's release.yml for why classic, not
 #      fine-grained: the latter repeatedly failed for this cross-repo
 #      publish pattern).
-#   3. Add it as a secret named RELEASES_REPO_TOKEN in this (private)
-#      repo's Settings -> Secrets and variables -> Actions.
+#   3. Add it as a secret named RELEASES_REPO_TOKEN in this repo's
+#      Settings -> Secrets and variables -> Actions.
 
 on:
   push:
