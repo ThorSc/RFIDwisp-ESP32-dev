@@ -841,6 +841,14 @@ void uiSetSpoolmanLists(const std::vector<SpoolmanVendor> &vendors,
   // doesn't affect anything but display order.
   std::sort(uiSpools.begin(), uiSpools.end(),
             [](const SpoolmanSpool &a, const SpoolmanSpool &b) { return a.id > b.id; });
+  // Vendor, then material, then colour - same order as the Flutter app's
+  // filament dropdown.
+  std::sort(uiFilaments.begin(), uiFilaments.end(),
+            [](const SpoolmanFilament &a, const SpoolmanFilament &b) {
+              if (a.vendorName != b.vendorName) return a.vendorName < b.vendorName;
+              if (a.material != b.material) return a.material < b.material;
+              return a.colorHex < b.colorHex;
+            });
 
   String vendorOptions;
   for (size_t i = 0; i < uiVendors.size(); i++) {
