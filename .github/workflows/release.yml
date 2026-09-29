@@ -8,7 +8,9 @@ name: Build and publish release
 # stops after the first job and builds nothing. So a release happens by
 # bumping VERSION and pushing. The private source repo is never made
 # public - only the built firmware is uploaded as a GitHub Release in the
-# distribution repo.
+# distribution repo. Each release also bundles LICENSE/THIRD-PARTY-LICENSES.md,
+# and those two files are additionally synced to the distribution repo's root
+# (not just the release zip) so GitHub's license detection picks them up.
 #
 # The workflow can also be started manually (workflow_dispatch); with
 # "rebuild" ticked it rebuilds and re-uploads the assets of a version that
@@ -33,6 +35,8 @@ on:
     paths:
       - "wt32sc01plus/**"
       - "VERSION"
+      - "LICENSE"
+      - "THIRD-PARTY-LICENSES.md"
       - ".github/workflows/release.yml"
   workflow_dispatch:
     inputs:
@@ -126,6 +130,7 @@ jobs:
           cp "$boot_app0" "$out/boot_app0.bin"
           cp FLASHING.md "$out/"
           cp data/lang.example.json "$out/"
+          cp ../LICENSE ../THIRD-PARTY-LICENSES.md "$out/"
 
           (cd release_assets && zip -r "RFIDwisp-ESP32-wt32sc01plus-${{ needs.prepare.outputs.tag }}.zip" RFIDwisp-ESP32-wt32sc01plus)
 
@@ -162,6 +167,26 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.tag }}
           name: ${{ needs.prepare.outputs.tag }}
           files: release_assets/*
+
+      - name: Sync LICENSE files to distribution repo root
+        # Also committed at the repo root (not just inside each release zip)
+        # so GitHub's own license detection/badge on the dist repo works.
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${DIST_REPO}.git" dist_repo
+          cp LICENSE THIRD-PARTY-LICENSES.md dist_repo/
+          cd dist_repo
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "LICENSE files already up to date in $DIST_REPO"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add LICENSE THIRD-PARTY-LICENSES.md
+          git commit -m "Sync LICENSE / THIRD-PARTY-LICENSES.md from source repo"
+          git push
 
       - name: Tag the source commit
         # For traceability: which commit of this repo a release was built
