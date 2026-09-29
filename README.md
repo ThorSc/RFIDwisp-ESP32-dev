@@ -199,3 +199,9 @@ One-time setup this repo's Settings -> Secrets and variables -> Actions
 needs before the first release: a secret named `RELEASES_REPO_TOKEN`
 holding a classic GitHub PAT with the `public_repo` scope (see the comment
 at the top of `release.yml` for why classic, not fine-grained).
+
+## License
+
+MIT, see [LICENSE](LICENSE). Bundled/linked third-party libraries keep their
+own licenses (two are LGPL-2.1, statically linked) - see
+[THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md).
