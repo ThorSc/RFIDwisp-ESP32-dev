@@ -9,7 +9,7 @@ This repo is the source those releases are built from (see "License" below
 for why it's public: two statically-linked dependencies are LGPL-2.1).
 
 Standalone firmware for the WT32-SC01 Plus (ESP32-S3, 3.5" ST7796 touch
-display) plus an external PN532 RFID module: a from-scratch, feature-equivalent
+display) plus an external RC522 RFID module (SPI): a from-scratch, feature-equivalent
 reimplementation of the [Flutter RFIDwisp app](../RFIDwisp-dev) that runs
 without a PC, talking to Spoolman over Wi-Fi.
 
@@ -29,9 +29,9 @@ wt32sc01plus/
   include/lv_conf.h      LVGL configuration
   data/lang.example.json  Example UI string override (see "Language")
   src/
-    board_config.h       Display/touch/PN532 pin assignments - check first
+    board_config.h       Display/touch/RC522 pin assignments - check first
     display_setup.*       LovyanGFX + LVGL bring-up for the ST7796/FT6336
-    pn532_reader.*         PN532 wrapper: find tag, authenticate, read/write
+    mfrc522_reader.*        RC522 wrapper: find tag, authenticate, read/write
     qidi_tag.*              Material/colour/vendor tables + 16-byte encoding
     settings.*               Spoolman/OTA settings, in NVS
     strings.*                 UI text lookup with optional LittleFS override
@@ -46,12 +46,14 @@ wt32sc01plus/
 - **Display + touch**: on-board. The ST7796 display uses an 8-bit parallel
   (i80) bus, not SPI; the pins in `board_config.h` are verified against the
   board's datasheet and confirmed working on hardware.
-- **PN532**: external module in I2C mode (set its mode switches/jumpers to
-  **I2C**), wired to a *second* I2C bus (`Wire1`) since the on-board bus is
-  used by the touch controller. Defaults in `board_config.h`:
-  - `PN532_SDA` = GPIO 10, `PN532_SCL` = GPIO 11 (expansion header)
-  - IRQ and RESET are not wired (polling mode). GPIO 26-32 cannot be used on
-    the ESP32-S3 (flash/PSRAM).
+- **RC522**: external module in SPI mode, wired to a *dedicated* SPI bus
+  separate from the on-board display's i80 bus. Defaults in `board_config.h`
+  (expansion header pins; GPIO 26-32 cannot be used on the ESP32-S3 -
+  flash/PSRAM):
+  - `RC522_SCK` = GPIO 12, `RC522_MISO` = GPIO 13, `RC522_MOSI` = GPIO 11,
+    `RC522_SS` = GPIO 10
+  - `RC522_RST` = GPIO 14, or tie the module's RST pin to 3.3V and set
+    `RC522_RST` to `-1` if you don't want to wire it up.
 
 ## Building
 
@@ -172,11 +174,11 @@ desktop window auto-sizer, and the GitHub-release update checker.
 
 ## Known limitations of the current state
 
-- PN532 access and the Wi-Fi portal are synchronous: the touchscreen is
+- RC522 access and the Wi-Fi portal are synchronous: the touchscreen is
   unresponsive while either runs. Fine for the explicit, occasional actions
   they're used for so far; a background FreeRTOS task would be needed before
   adding anything longer-running.
-- Display flashed and confirmed on hardware; PN532 wiring, touch and the
+- Display flashed and confirmed on hardware; RC522 wiring, touch and the
   Wi-Fi/Spoolman flows are not yet tested on the device - review pin
   assignments and library versions before relying on it.
 
