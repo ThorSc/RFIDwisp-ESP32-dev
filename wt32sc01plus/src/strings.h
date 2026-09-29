@@ -53,6 +53,8 @@ enum class StrId {
   ErrorSpoolNumberRange,
   ErrorVendorIdRange,
   SleepTimeout,
+  OtaUpdating,
+  OtaUpdateFailed,
   Count // sentinel, not a real string
 };
 

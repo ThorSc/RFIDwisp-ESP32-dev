@@ -1,5 +1,10 @@
 #pragma once
 
+// Network hostname (DHCP client id / mDNS name); also used as the OTA
+// device name so `pio run -t upload --upload-port RFIDwisp-mobile.local`
+// (or the Arduino IDE's network port list) can find the device.
+extern const char *const kNetworkHostname;
+
 // Connects to the saved Wi-Fi network. If there is none (first boot) or the
 // saved one cannot be reached, opens a "RFIDwisp-Setup" access point with a
 // captive portal: the phone/laptop that joins it is redirected to a web form

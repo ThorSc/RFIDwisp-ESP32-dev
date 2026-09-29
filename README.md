@@ -31,9 +31,10 @@ wt32sc01plus/
     display_setup.*       LovyanGFX + LVGL bring-up for the ST7796/FT6336
     pn532_reader.*         PN532 wrapper: find tag, authenticate, read/write
     qidi_tag.*              Material/colour/vendor tables + 16-byte encoding
-    settings.*               Spoolman settings, in NVS
+    settings.*               Spoolman/OTA settings, in NVS
     strings.*                 UI text lookup with optional LittleFS override
     wifi_setup.*               Wi-Fi captive-portal provisioning
+    ota_setup.*                 Wi-Fi (OTA) firmware updates
     ui.*                        LVGL screens (main, spool edit, settings)
     main.cpp                     Wires it all together
 ```
@@ -63,6 +64,13 @@ pio run -t uploadfs    # flash data/ to LittleFS (only needed for a lang.json ov
 pio device monitor      # serial log (115200 baud)
 ```
 
+Once a device is on the network, later builds can also be flashed over Wi-Fi
+instead of USB (see "OTA updates" below):
+
+```
+pio run -t upload --upload-port RFIDwisp-mobile.local
+```
+
 ## First boot / Wi-Fi setup
 
 On first boot (or after "Reconfigure network" in Settings), the device opens
@@ -79,6 +87,27 @@ The device reboots into your network. Wi-Fi credentials are stored by the
 WiFiManager library in its own NVS namespace; the Spoolman
 settings are stored separately (see `settings.h`) and are not erased by
 "Reconfigure network" (only the Wi-Fi credentials are).
+
+## OTA updates
+
+Once connected to Wi-Fi, the device advertises itself as **RFIDwisp-mobile**
+(hostname/mDNS name) and accepts firmware uploads over the network, so
+later updates don't need a USB cable:
+
+```
+cd wt32sc01plus
+pio run -t upload --upload-port RFIDwisp-mobile.local
+```
+
+This also works from the Arduino IDE: `RFIDwisp-mobile` should show up under
+**Tools > Port** as a network port once the device is on the same network.
+
+By default the OTA port has no password. To require one, set an "OTA update
+password" in the Wi-Fi setup portal (join **RFIDwisp-Setup**, or run
+"Reconfigure network" in Settings) alongside the Spoolman address; leave it
+empty to keep OTA open. The password is stored in NVS (`settings.h`) like the
+Spoolman address, and PlatformIO/Arduino will prompt for it on upload once
+one is set.
 
 ## Language
 

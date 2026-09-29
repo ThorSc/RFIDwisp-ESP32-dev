@@ -40,5 +40,7 @@
   "error_weight_range": "The weight must be between 0 and 10000 g.",
   "error_spool_number_range": "The spool number must be between 0 and 999. Spoolman spool:",
   "error_vendor_id_range": "The Spoolman vendor ID must be between 0 and 255. Vendor ID:",
-  "sleep_timeout": "Sleep after (min, 0 = off)"
+  "sleep_timeout": "Sleep after (min, 0 = off)",
+  "ota_updating": "Updating firmware...",
+  "ota_update_failed": "OTA update failed."
 }

@@ -3,6 +3,7 @@
 #include <vector>
 #include "display_setup.h"
 #include "mfrc522_reader.h"
+#include "ota_setup.h"
 #include "qidi_tag.h"
 #include "settings.h"
 #include "spoolman_client.h"
@@ -220,6 +221,7 @@ static void connectWifi() {
     String info = String(T(StrId::WifiStatus)) + ": " + WiFi.SSID() + " (" +
                   WiFi.localIP().toString() + ")";
     uiSetWifiStatus(info.c_str());
+    otaSetup();
   } else {
     uiSetWifiStatus("Not connected - join \"RFIDwisp-Setup\" to configure.");
   }
@@ -246,5 +248,6 @@ void setup() {
 
 void loop() {
   displayLoop();
+  otaLoop();
   delay(5);
 }
