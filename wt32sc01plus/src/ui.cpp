@@ -787,36 +787,36 @@ static void buildSettingsScreen() {
   taSpoolmanAddress = lv_textarea_create(scrSettings);
   lv_textarea_set_one_line(taSpoolmanAddress, true);
   lv_textarea_set_placeholder_text(taSpoolmanAddress, T(StrId::SpoolmanAddress));
-  lv_obj_set_size(taSpoolmanAddress, SCREEN_WIDTH - 30, 42);
-  lv_obj_align(taSpoolmanAddress, LV_ALIGN_TOP_LEFT, 15, 66);
+  lv_obj_set_size(taSpoolmanAddress, SCREEN_WIDTH - 30, 38);
+  lv_obj_align(taSpoolmanAddress, LV_ALIGN_TOP_LEFT, 15, 60);
   lv_obj_add_event_cb(taSpoolmanAddress, spoolmanAddressFocusCb, LV_EVENT_FOCUSED, nullptr);
   lv_obj_add_event_cb(taSpoolmanAddress, spoolmanAddressDefocusCb, LV_EVENT_DEFOCUSED, nullptr);
 
   lv_obj_t *lblUseSpoolman = lv_label_create(scrSettings);
   lv_label_set_text(lblUseSpoolman, T(StrId::UseSpoolman));
-  lv_obj_align(lblUseSpoolman, LV_ALIGN_TOP_LEFT, 15, 124);
+  lv_obj_align(lblUseSpoolman, LV_ALIGN_TOP_LEFT, 15, 108);
   swUseSpoolman = lv_switch_create(scrSettings);
-  lv_obj_align(swUseSpoolman, LV_ALIGN_TOP_LEFT, 200, 118);
+  lv_obj_align(swUseSpoolman, LV_ALIGN_TOP_LEFT, 200, 102);
   lv_obj_add_event_cb(swUseSpoolman, useSpoolmanToggleCb, LV_EVENT_VALUE_CHANGED, nullptr);
 
   lv_obj_t *lblSleep = lv_label_create(scrSettings);
   lv_label_set_text(lblSleep, T(StrId::SleepTimeout));
-  lv_obj_align(lblSleep, LV_ALIGN_TOP_LEFT, 15, 176);
-  sbSleep = makeNumberField(scrSettings, 340, 166, 120);
+  lv_obj_align(lblSleep, LV_ALIGN_TOP_LEFT, 15, 150);
+  sbSleep = makeNumberField(scrSettings, 340, 140, 120);
   setNumberField(sbSleep, settings.sleepMinutes);
 
   lv_obj_t *lblUpdateCheck = lv_label_create(scrSettings);
   lv_label_set_text(lblUpdateCheck, T(StrId::UpdateAtStartup));
-  lv_obj_align(lblUpdateCheck, LV_ALIGN_TOP_LEFT, 15, 224);
+  lv_obj_align(lblUpdateCheck, LV_ALIGN_TOP_LEFT, 15, 196);
   swUpdateCheck = lv_switch_create(scrSettings);
   lv_obj_set_size(swUpdateCheck, 50, 26);
-  lv_obj_align(swUpdateCheck, LV_ALIGN_TOP_LEFT, 165, 216);
+  lv_obj_align(swUpdateCheck, LV_ALIGN_TOP_LEFT, 165, 190);
   if (settings.checkForUpdates) lv_obj_add_state(swUpdateCheck, LV_STATE_CHECKED);
   lv_obj_add_event_cb(swUpdateCheck, updateCheckToggleCb, LV_EVENT_VALUE_CHANGED, nullptr);
 
   lv_obj_t *btnUpdate = lv_btn_create(scrSettings);
   lv_obj_set_size(btnUpdate, 240, 38);
-  lv_obj_align(btnUpdate, LV_ALIGN_TOP_RIGHT, -15, 210);
+  lv_obj_align(btnUpdate, LV_ALIGN_TOP_RIGHT, -15, 186);
   lv_obj_add_event_cb(btnUpdate, updateButtonCb, LV_EVENT_CLICKED, nullptr);
   lblUpdateButton = lv_label_create(btnUpdate);
   lv_label_set_text(lblUpdateButton, T(StrId::UpdateCheckNow));
@@ -827,7 +827,7 @@ static void buildSettingsScreen() {
   lv_label_set_long_mode(lblUpdateStatus, LV_LABEL_LONG_DOT);
   lv_obj_set_style_text_font(lblUpdateStatus, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_color(lblUpdateStatus, lv_color_hex(0x808080), 0);
-  lv_obj_align(lblUpdateStatus, LV_ALIGN_TOP_LEFT, 15, 242);
+  lv_obj_align(lblUpdateStatus, LV_ALIGN_TOP_LEFT, 15, 230);
   lv_label_set_text(lblUpdateStatus, (String(T(StrId::Firmware)) + " v" + FIRMWARE_VERSION).c_str());
 
   lv_obj_t *btnReconfigure = lv_btn_create(scrSettings);
