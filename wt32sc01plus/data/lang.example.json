@@ -42,5 +42,17 @@
   "error_vendor_id_range": "The Spoolman vendor ID must be between 0 and 255. Vendor ID:",
   "sleep_timeout": "Sleep after (min, 0 = off)",
   "ota_updating": "Updating firmware...",
-  "ota_update_failed": "OTA update failed."
+  "ota_update_failed": "OTA update failed.",
+  "update_check_now": "Check for updates",
+  "update_at_startup": "Check at startup",
+  "update_checking": "Checking for updates...",
+  "update_up_to_date": "Firmware is up to date.",
+  "update_available": "New version available:",
+  "update_dialog_title": "Update available",
+  "update_install": "Install",
+  "update_later": "Later",
+  "update_installing": "Installing update - do not switch off.",
+  "update_check_failed": "Update check failed:",
+  "update_install_failed": "Update failed:",
+  "firmware": "Firmware"
 }

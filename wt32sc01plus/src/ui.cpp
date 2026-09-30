@@ -18,6 +18,8 @@
 void handleReadTagRequested();
 void handleWriteTagRequested();
 void handleWriteScreenOpened();
+void handleUpdateButtonPressed();
+void handleInstallUpdateRequested();
 
 // Implemented in wifi_setup.cpp.
 void wifiSetupReset();
@@ -54,6 +56,9 @@ static lv_obj_t *lblWifiStatus;
 static lv_obj_t *taSpoolmanAddress;
 static lv_obj_t *keyboard;
 static lv_obj_t *swUseSpoolman;
+static lv_obj_t *swUpdateCheck;
+static lv_obj_t *lblUpdateStatus, *lblUpdateButton;
+static lv_obj_t *busyOverlay, *busyLabel, *busyBar;
 
 
 
@@ -504,6 +509,77 @@ static void useSpoolmanToggleCb(lv_event_t *e) {
   settings.save();
 }
 
+static void updateCheckToggleCb(lv_event_t *e) {
+  settings.checkForUpdates = lv_obj_has_state(swUpdateCheck, LV_STATE_CHECKED);
+  settings.save();
+}
+
+static void updateButtonCb(lv_event_t *e) { handleUpdateButtonPressed(); }
+
+static void updatePromptCb(lv_event_t *e) {
+  lv_obj_t *box = lv_event_get_current_target(e);
+  bool install = lv_msgbox_get_active_btn(box) == 0;
+  lv_msgbox_close_async(box);
+  if (install) handleInstallUpdateRequested();
+}
+
+void uiShowUpdatePrompt(const char *version) {
+  // The button map is kept by the message box, so it has to outlive this call.
+  static const char *buttons[3];
+  buttons[0] = T(StrId::UpdateInstall);
+  buttons[1] = T(StrId::UpdateLater);
+  buttons[2] = "";
+
+  String text = String(T(StrId::UpdateAvailable)) + " v" + version + "\n" + T(StrId::Firmware) +
+                " v" + FIRMWARE_VERSION;
+  lv_obj_t *box = lv_msgbox_create(nullptr, T(StrId::UpdateDialogTitle), text.c_str(), buttons, false);
+  lv_obj_set_width(box, 380);
+  lv_obj_center(box);
+  lv_obj_add_event_cb(box, updatePromptCb, LV_EVENT_VALUE_CHANGED, nullptr);
+}
+
+void uiShowBusy(const char *text, int percent) {
+  if (!busyOverlay) {
+    busyOverlay = lv_obj_create(lv_layer_top());
+    lv_obj_set_size(busyOverlay, SCREEN_WIDTH, SCREEN_HEIGHT);
+    lv_obj_align(busyOverlay, LV_ALIGN_TOP_LEFT, 0, 0);
+    lv_obj_set_style_bg_color(busyOverlay, lv_color_hex(0x202020), 0);
+    lv_obj_set_style_bg_opa(busyOverlay, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(busyOverlay, 0, 0);
+    lv_obj_set_style_radius(busyOverlay, 0, 0);
+    lv_obj_clear_flag(busyOverlay, LV_OBJ_FLAG_SCROLLABLE);
+
+    busyLabel = lv_label_create(busyOverlay);
+    lv_obj_set_width(busyLabel, SCREEN_WIDTH - 60);
+    lv_label_set_long_mode(busyLabel, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(busyLabel, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(busyLabel, lv_color_white(), 0);
+    lv_obj_align(busyLabel, LV_ALIGN_CENTER, 0, -30);
+
+    busyBar = lv_bar_create(busyOverlay);
+    lv_obj_set_size(busyBar, SCREEN_WIDTH - 100, 16);
+    lv_obj_align(busyBar, LV_ALIGN_CENTER, 0, 30);
+  }
+  lv_label_set_text(busyLabel, text);
+  if (percent >= 0) {
+    lv_obj_clear_flag(busyBar, LV_OBJ_FLAG_HIDDEN);
+    lv_bar_set_value(busyBar, percent, LV_ANIM_OFF);
+  } else {
+    lv_obj_add_flag(busyBar, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
+void uiHideBusy() {
+  if (!busyOverlay) return;
+  lv_obj_del(busyOverlay);
+  busyOverlay = busyLabel = busyBar = nullptr;
+}
+
+void uiSetUpdateState(const char *status, const char *buttonText) {
+  lv_label_set_text(lblUpdateStatus, status);
+  lv_label_set_text(lblUpdateButton, buttonText);
+}
+
 static void saveSpoolmanAddress() {
   String address = lv_textarea_get_text(taSpoolmanAddress);
   address.trim();
@@ -728,6 +804,31 @@ static void buildSettingsScreen() {
   lv_obj_align(lblSleep, LV_ALIGN_TOP_LEFT, 15, 176);
   sbSleep = makeNumberField(scrSettings, 340, 166, 120);
   setNumberField(sbSleep, settings.sleepMinutes);
+
+  lv_obj_t *lblUpdateCheck = lv_label_create(scrSettings);
+  lv_label_set_text(lblUpdateCheck, T(StrId::UpdateAtStartup));
+  lv_obj_align(lblUpdateCheck, LV_ALIGN_TOP_LEFT, 15, 224);
+  swUpdateCheck = lv_switch_create(scrSettings);
+  lv_obj_set_size(swUpdateCheck, 50, 26);
+  lv_obj_align(swUpdateCheck, LV_ALIGN_TOP_LEFT, 165, 216);
+  if (settings.checkForUpdates) lv_obj_add_state(swUpdateCheck, LV_STATE_CHECKED);
+  lv_obj_add_event_cb(swUpdateCheck, updateCheckToggleCb, LV_EVENT_VALUE_CHANGED, nullptr);
+
+  lv_obj_t *btnUpdate = lv_btn_create(scrSettings);
+  lv_obj_set_size(btnUpdate, 240, 38);
+  lv_obj_align(btnUpdate, LV_ALIGN_TOP_RIGHT, -15, 210);
+  lv_obj_add_event_cb(btnUpdate, updateButtonCb, LV_EVENT_CLICKED, nullptr);
+  lblUpdateButton = lv_label_create(btnUpdate);
+  lv_label_set_text(lblUpdateButton, T(StrId::UpdateCheckNow));
+  lv_obj_center(lblUpdateButton);
+
+  lblUpdateStatus = lv_label_create(scrSettings);
+  lv_obj_set_width(lblUpdateStatus, SCREEN_WIDTH - 30);
+  lv_label_set_long_mode(lblUpdateStatus, LV_LABEL_LONG_DOT);
+  lv_obj_set_style_text_font(lblUpdateStatus, &lv_font_montserrat_14, 0);
+  lv_obj_set_style_text_color(lblUpdateStatus, lv_color_hex(0x808080), 0);
+  lv_obj_align(lblUpdateStatus, LV_ALIGN_TOP_LEFT, 15, 242);
+  lv_label_set_text(lblUpdateStatus, (String(T(StrId::Firmware)) + " v" + FIRMWARE_VERSION).c_str());
 
   lv_obj_t *btnReconfigure = lv_btn_create(scrSettings);
   lv_obj_set_size(btnReconfigure, 265, 50);

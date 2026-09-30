@@ -138,11 +138,18 @@ jobs:
 
           (cd release_assets && zip -r "RFIDwisp-ESP32-wt32sc01plus-${{ needs.prepare.outputs.tag }}.zip" RFIDwisp-ESP32-wt32sc01plus)
 
+          # The app image alone, as a separate asset: this is what the device
+          # downloads for its own update (see src/updater.cpp; the name must
+          # match kFirmwareAssetName there).
+          cp "$build_dir/firmware.bin" release_assets/RFIDwisp-ESP32-wt32sc01plus-firmware.bin
+
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-zip
-          path: wt32sc01plus/release_assets/*.zip
+          path: |
+            wt32sc01plus/release_assets/*.zip
+            wt32sc01plus/release_assets/*-firmware.bin
           if-no-files-found: error
 
   publish-release:

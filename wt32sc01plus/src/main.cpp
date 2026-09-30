@@ -9,6 +9,7 @@
 #include "spoolman_client.h"
 #include "strings.h"
 #include "ui.h"
+#include "updater.h"
 #include "wifi_setup.h"
 
 static Mfrc522Reader reader;
@@ -212,6 +213,77 @@ void handleWriteTagRequested() {
   uiSetStatus(result == TagResult::Ok ? T(StrId::TagWritten) : tagResultMessage(result));
 }
 
+// The newer firmware found by the last check, if any.
+static bool updateAvailable = false;
+static UpdateInfo pendingUpdate;
+
+static String firmwareLine() { return String(T(StrId::Firmware)) + " v" + firmwareVersion(); }
+
+// Shows the outcome of a check on the settings screen: the button installs
+// the found version, or checks again.
+static void showUpdateState(const String &status) {
+  String button = updateAvailable ? String(T(StrId::UpdateInstall)) + " v" + pendingUpdate.version
+                                  : String(T(StrId::UpdateCheckNow));
+  uiSetUpdateState(status.c_str(), button.c_str());
+}
+
+// Asks GitHub for a newer firmware and updates the settings screen. With
+// [prompt] a found update is also offered in a dialog (the startup check);
+// the settings button only reports it, the user is at the button already.
+static void checkForUpdate(bool prompt) {
+  uiShowBusy(T(StrId::UpdateChecking));
+  displayLoop();
+
+  String error;
+  UpdateCheck result = updateCheck(pendingUpdate, error);
+  uiHideBusy();
+
+  updateAvailable = result == UpdateCheck::Available;
+  switch (result) {
+    case UpdateCheck::Available:
+      showUpdateState(String(T(StrId::UpdateAvailable)) + " v" + pendingUpdate.version);
+      if (prompt) uiShowUpdatePrompt(pendingUpdate.version.c_str());
+      break;
+    case UpdateCheck::UpToDate:
+      showUpdateState(firmwareLine() + " - " + T(StrId::UpdateUpToDate));
+      break;
+    case UpdateCheck::Failed:
+      showUpdateState(String(T(StrId::UpdateCheckFailed)) + " " + error);
+      break;
+  }
+}
+
+void handleInstallUpdateRequested();
+
+// The settings screen's update button: install what was found, else check.
+void handleUpdateButtonPressed() {
+  if (updateAvailable) {
+    handleInstallUpdateRequested();
+  } else {
+    checkForUpdate(false);
+  }
+}
+
+static void onUpdateProgress(int percent) {
+  uiShowBusy(T(StrId::UpdateInstalling), percent);
+  displayLoop();
+}
+
+// Downloads and flashes the update found by the last check; restarts the
+// device on success.
+void handleInstallUpdateRequested() {
+  if (!updateAvailable) return;
+  uiShowBusy(T(StrId::UpdateInstalling), 0);
+  displayLoop();
+
+  String error;
+  bool ok = updateInstall(pendingUpdate, onUpdateProgress, error);
+  uiHideBusy();
+  if (!ok) showUpdateState(String(T(StrId::UpdateInstallFailed)) + " " + error);
+}
+
+static bool wifiConnected = false;
+
 static void connectWifi() {
   uiSetStatus("Connecting to Wi-Fi...");
   displayLoop();
@@ -222,6 +294,7 @@ static void connectWifi() {
                   WiFi.localIP().toString() + ")";
     uiSetWifiStatus(info.c_str());
     otaSetup();
+    wifiConnected = true;
   } else {
     uiSetWifiStatus("Not connected - join \"RFIDwisp-Setup\" to configure.");
   }
@@ -244,6 +317,8 @@ void setup() {
   } else {
     uiSetStatus(T(StrId::Ready));
   }
+
+  if (wifiConnected && settings.checkForUpdates) checkForUpdate(true);
 }
 
 void loop() {

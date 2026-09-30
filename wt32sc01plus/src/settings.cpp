@@ -12,6 +12,7 @@ void AppSettings::load() {
   useSpoolman = prefs.getBool("useSpoolman", false);
   sleepMinutes = min<uint8_t>(prefs.getUChar("sleepMin", 10), 60);
   otaPassword = prefs.getString("otaPass", "");
+  checkForUpdates = prefs.getBool("updCheck", true);
   prefs.end();
 }
 
@@ -22,5 +23,6 @@ void AppSettings::save() const {
   prefs.putBool("useSpoolman", useSpoolman);
   prefs.putUChar("sleepMin", sleepMinutes);
   prefs.putString("otaPass", otaPassword);
+  prefs.putBool("updCheck", checkForUpdates);
   prefs.end();
 }

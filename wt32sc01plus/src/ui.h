@@ -50,6 +50,21 @@ void uiSetStatus(const char *text);
 // Updates the Wi-Fi status line shown on the settings screen.
 void uiSetWifiStatus(const char *text);
 
+// The firmware update row of the settings screen: [status] is the line under
+// the switches, [buttonText] the label of the button next to them (it checks
+// for an update, or installs the one that was found).
+void uiSetUpdateState(const char *status, const char *buttonText);
+
+// Asks the user whether to install the firmware [version] now (modal dialog).
+// "Install" ends up in main.cpp's handleInstallUpdateRequested().
+void uiShowUpdatePrompt(const char *version);
+
+// A full-screen "please wait" with [text] and, if [percent] is 0..100, a
+// progress bar; blocks all input until uiHideBusy(). Call displayLoop()
+// afterwards to make it appear while the caller keeps working.
+void uiShowBusy(const char *text, int percent = -1);
+void uiHideBusy();
+
 
 // Reads the edit screen's fields back into a spool, for writing to a tag.
 FilamentSpool uiCurrentSpool();

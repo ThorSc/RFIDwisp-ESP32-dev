@@ -49,6 +49,18 @@ static const char *const keys[(int)StrId::Count] = {
   "sleep_timeout",
   "ota_updating",
   "ota_update_failed",
+  "update_check_now",
+  "update_at_startup",
+  "update_checking",
+  "update_up_to_date",
+  "update_available",
+  "update_dialog_title",
+  "update_install",
+  "update_later",
+  "update_installing",
+  "update_check_failed",
+  "update_install_failed",
+  "firmware",
 };
 
 static const char *const defaultStrings[(int)StrId::Count] = {
@@ -96,6 +108,18 @@ static const char *const defaultStrings[(int)StrId::Count] = {
   "Sleep after (min, 0 = off)",
   "Updating firmware...",
   "OTA update failed.",
+  "Check for updates",
+  "Check at startup",
+  "Checking for updates...",
+  "Firmware is up to date.",
+  "New version available:",
+  "Update available",
+  "Install",
+  "Later",
+  "Installing update - do not switch off.",
+  "Update check failed:",
+  "Update failed:",
+  "Firmware",
 };
 // clang-format on
 

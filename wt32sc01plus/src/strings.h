@@ -55,6 +55,18 @@ enum class StrId {
   SleepTimeout,
   OtaUpdating,
   OtaUpdateFailed,
+  UpdateCheckNow,
+  UpdateAtStartup,
+  UpdateChecking,
+  UpdateUpToDate,
+  UpdateAvailable,
+  UpdateDialogTitle,
+  UpdateInstall,
+  UpdateLater,
+  UpdateInstalling,
+  UpdateCheckFailed,
+  UpdateInstallFailed,
+  Firmware,
   Count // sentinel, not a real string
 };
 

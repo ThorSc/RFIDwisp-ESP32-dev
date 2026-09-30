@@ -37,6 +37,7 @@ wt32sc01plus/
     strings.*                 UI text lookup with optional LittleFS override
     wifi_setup.*               Wi-Fi captive-portal provisioning
     ota_setup.*                 Wi-Fi (OTA) firmware updates
+    updater.*                   Self-update from the GitHub releases
     ui.*                        LVGL screens (main, spool edit, settings)
     main.cpp                     Wires it all together
 ```
@@ -112,6 +113,20 @@ password" in the Wi-Fi setup portal (join **RFIDwisp-Setup**, or run
 empty to keep OTA open. The password is stored in NVS (`settings.h`) like the
 Spoolman address, and PlatformIO/Arduino will prompt for it on upload once
 one is set.
+
+## Updating from GitHub
+
+At startup (if Wi-Fi is connected) the device checks the latest release of
+[`ThorSc/RFIDwisp-ESP32`](https://github.com/ThorSc/RFIDwisp-ESP32/releases/latest)
+and, if it is newer than the running firmware, asks whether to install it.
+**Settings** has the same: a "Check at startup" switch and a button that checks
+right away and then installs the version it found. The device downloads the
+release's `RFIDwisp-ESP32-wt32sc01plus-firmware.bin` over TLS (certificates are
+validated, the clock is set via NTP), verifies it against the SHA-256 GitHub
+publishes and only then activates it and restarts. A failed or interrupted
+download leaves the running firmware untouched. Releases published before this feature have no
+such file and can only be flashed over USB/OTA as above; the first
+self-updating version has to be flashed that way too.
 
 ## Language
 

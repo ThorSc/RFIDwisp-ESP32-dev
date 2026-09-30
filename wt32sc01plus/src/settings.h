@@ -8,6 +8,7 @@ struct AppSettings {
   String spoolmanAddress = ""; // e.g. http://spoolman.local:7912
   bool useSpoolman = false;
   uint8_t sleepMinutes = 10; // screen sleep timeout, 0-60 minutes, 0 = never
+  bool checkForUpdates = true; // look for a new firmware version at startup
   String otaPassword = ""; // OTA update password, empty = no auth required
 
   void load();
