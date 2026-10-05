@@ -41,6 +41,7 @@ on:
       - "VERSION"
       - "LICENSE"
       - "THIRD-PARTY-LICENSES.md"
+      - "CHANGELOG.md"
       - ".github/workflows/release.yml"
   workflow_dispatch:
     inputs:
@@ -135,6 +136,8 @@ jobs:
           cp FLASHING.md "$out/"
           cp data/lang.example.json "$out/"
           cp ../LICENSE ../THIRD-PARTY-LICENSES.md "$out/"
+          # The changelog without the unreleased notes.
+          awk '/^## \[Unreleased\]/{skip=1;next} /^## \[/{skip=0} !skip' ../CHANGELOG.md > "$out/CHANGELOG.md"
 
           (cd release_assets && zip -r "RFIDwisp-ESP32-wt32sc01plus-${{ needs.prepare.outputs.tag }}.zip" RFIDwisp-ESP32-wt32sc01plus)
 
@@ -179,7 +182,7 @@ jobs:
           name: ${{ needs.prepare.outputs.tag }}
           files: release_assets/*
 
-      - name: Sync LICENSE files to distribution repo root
+      - name: Sync LICENSE files and changelog to distribution repo root
         # Also committed at the repo root (not just inside each release zip)
         # so GitHub's own license detection/badge on the dist repo works.
         env:
@@ -188,15 +191,16 @@ jobs:
           set -euo pipefail
           git clone "https://x-access-token:${GH_TOKEN}@github.com/${DIST_REPO}.git" dist_repo
           cp LICENSE THIRD-PARTY-LICENSES.md dist_repo/
+          awk '/^## \[Unreleased\]/{skip=1;next} /^## \[/{skip=0} !skip' CHANGELOG.md > dist_repo/CHANGELOG.md
           cd dist_repo
           if [ -z "$(git status --porcelain)" ]; then
-            echo "LICENSE files already up to date in $DIST_REPO"
+            echo "LICENSE files and changelog already up to date in $DIST_REPO"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add LICENSE THIRD-PARTY-LICENSES.md
-          git commit -m "Sync LICENSE / THIRD-PARTY-LICENSES.md from source repo"
+          git add LICENSE THIRD-PARTY-LICENSES.md CHANGELOG.md
+          git commit -m "Sync LICENSE, THIRD-PARTY-LICENSES.md and CHANGELOG.md from source repo"
           git push
 
       - name: Tag the source commit

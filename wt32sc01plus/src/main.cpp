@@ -264,17 +264,6 @@ static void checkForUpdate(bool prompt) {
   }
 }
 
-void handleInstallUpdateRequested();
-
-// The settings screen's update button: install what was found, else check.
-void handleUpdateButtonPressed() {
-  if (updateAvailable) {
-    handleInstallUpdateRequested();
-  } else {
-    checkForUpdate(false);
-  }
-}
-
 static void onUpdateProgress(int percent) {
   uiShowBusy(T(StrId::UpdateInstalling), percent);
   displayLoop();
@@ -282,7 +271,7 @@ static void onUpdateProgress(int percent) {
 
 // Downloads and flashes the update found by the last check; restarts the
 // device on success.
-void handleInstallUpdateRequested() {
+static void installUpdate() {
   if (!updateAvailable) return;
   uiShowBusy(T(StrId::UpdateInstalling), 0);
   displayLoop();
@@ -291,6 +280,27 @@ void handleInstallUpdateRequested() {
   bool ok = updateInstall(pendingUpdate, onUpdateProgress, error);
   uiHideBusy();
   if (!ok) showUpdateState(String(T(StrId::UpdateInstallFailed)) + " " + error);
+}
+
+// The UI callbacks only record what was asked for. Checking and installing
+// block for a long time and redraw the screen themselves (displayLoop), which
+// LVGL ignores while it is still inside the event handler that started them:
+// the "installing" overlay would never show up. loop() runs them instead.
+enum class UpdateAction { None, Check, Install };
+static UpdateAction pendingAction = UpdateAction::None;
+
+// The settings screen's update button: install what was found, else check.
+void handleUpdateButtonPressed() {
+  pendingAction = updateAvailable ? UpdateAction::Install : UpdateAction::Check;
+}
+
+void handleInstallUpdateRequested() { pendingAction = UpdateAction::Install; }
+
+static void runPendingUpdateAction() {
+  UpdateAction action = pendingAction;
+  pendingAction = UpdateAction::None;
+  if (action == UpdateAction::Check) checkForUpdate(false);
+  if (action == UpdateAction::Install) installUpdate();
 }
 
 static bool wifiConnected = false;
@@ -334,6 +344,7 @@ void setup() {
 
 void loop() {
   displayLoop();
+  runPendingUpdateAction();
   otaLoop();
   delay(5);
 }
