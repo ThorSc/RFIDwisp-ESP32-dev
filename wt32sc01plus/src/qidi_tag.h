@@ -1,5 +1,7 @@
 #pragma once
-#include <Arduino.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
 // The 16-byte spool payload a QIDI box reads from sector 1, block 4 of a
 // MIFARE Classic 1K tag, and the material/colour/vendor tables it is built
@@ -62,7 +64,13 @@ struct FilamentSpool {
   // spool this firmware (or RFIDwisp) could have written.
   static bool fromTagBytes(const uint8_t in[qidiTagLength], FilamentSpool &out) {
     uint8_t internalVendorId = in[13];
-    uint8_t vendorCode = internalVendorId != 0 ? qidiVendorCode("GENERIC") : in[2];
+    uint8_t vendorCode = in[2];
+    // Older tags stored the Spoolman vendor ID in byte 2 as well. Such an ID
+    // is usually no QIDI vendor code: read GENERIC then, the QIDI vendor is
+    // unknown.
+    if (qidiVendorName(vendorCode) == nullptr && internalVendorId != 0) {
+      vendorCode = qidiVendorCode("GENERIC");
+    }
 
     if (qidiMaterialName(in[0]) == nullptr) return false;
     if (qidiColorHex(in[1]) == nullptr) return false;

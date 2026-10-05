@@ -1,0 +1,25 @@
+{
+  "_comment": "Shared by RFIDwisp-dev (test/tag_vectors_test.dart) and RFIDwisp-ESP32-dev (wt32sc01plus/test/test_tag_vectors). The two copies must be identical; the one in RFIDwisp-dev is authoritative. bytes = the 16 tag bytes as 32 hex digits. internalVendorId null = no Spoolman vendor (byte 13 = 0). spool null = the payload is not a valid spool.",
+  "roundtrip": [
+    {"name": "QIDI PETG Basic, spool 252", "spool": {"material": "PETG Basic", "colorHex": "#228332", "vendor": "QIDI", "spoolNumber": 252, "internalVendorId": null, "lastWeightGrams": 0}, "bytes": "270901000000000000000000000000fc"},
+    {"name": "GENERIC PLA, last weight 850 g, spool 1", "spool": {"material": "PLA", "colorHex": "#FAFAFA", "vendor": "GENERIC", "spoolNumber": 1, "internalVendorId": null, "lastWeightGrams": 850}, "bytes": "01010000000000000000000352000001"},
+    {"name": "spool number above 255 uses two bytes", "spool": {"material": "PLA", "colorHex": "#FAFAFA", "vendor": "GENERIC", "spoolNumber": 999, "internalVendorId": null, "lastWeightGrams": 0}, "bytes": "010100000000000000000000000003e7"},
+    {"name": "QIDI vendor with a linked Spoolman vendor keeps byte 2 = 1", "spool": {"material": "PLA", "colorHex": "#FAFAFA", "vendor": "QIDI", "spoolNumber": 5, "internalVendorId": 7, "lastWeightGrams": 0}, "bytes": "01010100000000000000000000070005"},
+    {"name": "GENERIC vendor with a linked Spoolman vendor", "spool": {"material": "PLA", "colorHex": "#FAFAFA", "vendor": "GENERIC", "spoolNumber": 12, "internalVendorId": 200, "lastWeightGrams": 0}, "bytes": "01010000000000000000000000c8000c"},
+    {"name": "QIDI vendor with Spoolman vendor 200", "spool": {"material": "PLA", "colorHex": "#FAFAFA", "vendor": "QIDI", "spoolNumber": 12, "internalVendorId": 200, "lastWeightGrams": 0}, "bytes": "01010100000000000000000000c8000c"},
+    {"name": "last weight 12345 g", "spool": {"material": "PLA", "colorHex": "#FAFAFA", "vendor": "QIDI", "spoolNumber": 5, "internalVendorId": null, "lastWeightGrams": 12345}, "bytes": "01010100000000000000003039000005"},
+    {"name": "highest values: last table entries, weight 65535, vendor 255", "spool": {"material": "TPU", "colorHex": "#B87F2B", "vendor": "QIDI", "spoolNumber": 0, "internalVendorId": 255, "lastWeightGrams": 65535}, "bytes": "3218010000000000000000ffffff0000"}
+  ],
+  "fromTagOnly": [
+    {"name": "older tag: Spoolman vendor ID in byte 2 reads as GENERIC", "bytes": "0101c800000000000000000000c8000c", "spool": {"material": "PLA", "colorHex": "#FAFAFA", "vendor": "GENERIC", "spoolNumber": 12, "internalVendorId": 200, "lastWeightGrams": 0}},
+    {"name": "unknown vendor code without a Spoolman vendor is invalid", "bytes": "01017700000000000000000000000005", "spool": null},
+    {"name": "unknown material is invalid", "bytes": "ee010100000000000000000000000005", "spool": null},
+    {"name": "unknown colour is invalid", "bytes": "01770100000000000000000000000005", "spool": null},
+    {"name": "blank tag is invalid", "bytes": "00000000000000000000000000000000", "spool": null}
+  ],
+  "blank": [
+    {"name": "16 zero bytes", "bytes": "00000000000000000000000000000000", "blank": true},
+    {"name": "last byte set", "bytes": "00000000000000000000000000000001", "blank": false},
+    {"name": "first byte set", "bytes": "01000000000000000000000000000000", "blank": false}
+  ]
+}

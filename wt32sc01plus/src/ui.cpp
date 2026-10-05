@@ -871,8 +871,7 @@ void uiSetWifiStatus(const char *text) {
 void uiShowSpool(const FilamentSpool &spool) {
   selectCode(ddMaterial, qidiMaterials, qidiMaterialsCount, spool.materialCode);
   selectColorCode(spool.colorCode);
-  selectCode(ddVendor, qidiVendors, qidiVendorsCount,
-             spool.internalVendorId != 0 ? qidiVendorCode("GENERIC") : spool.vendorCode);
+  selectCode(ddVendor, qidiVendors, qidiVendorsCount, spool.vendorCode);
   setNumberField(sbSpoolNumber, spool.spoolNumber);
   setNumberField(sbWeight, spool.lastWeightGrams);
 
@@ -1022,7 +1021,7 @@ FilamentSpool uiCurrentSpool() {
   if (spoolmanModeActive) {
     // spoolNumber/internalVendorId/vendorCode are resolved by main.cpp
     // (existing spool id, or a newly created one) after this call.
-    // Without a linked Spoolman vendor the tag carries the QIDI vendor code.
+    // Placeholder: main.cpp decides the QIDI vendor code (no dropdown here).
     spool.vendorCode = qidiVendorCode("QIDI");
     spool.internalVendorId = 0;
     spool.spoolNumber = 0;

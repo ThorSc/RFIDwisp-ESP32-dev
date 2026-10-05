@@ -27,6 +27,11 @@ static std::vector<SpoolmanSpool> spoolmanSpools;
 // (mirrors rfid_tag_panel.dart's "Spoolman skipped" path for a re-write).
 static int lastReadSpoolNumber = -1;
 
+// The QIDI vendor code (byte 2) of the last tag read, if any. Spoolman mode has
+// no QIDI vendor dropdown (its row shows the Spoolman vendor), so a re-write
+// keeps what the tag had instead of silently changing it.
+static int lastReadVendorCode = -1;
+
 static bool spoolmanActive() {
   return settings.useSpoolman && settings.spoolmanAddress.length() > 0;
 }
@@ -94,6 +99,7 @@ void handleReadTagRequested() {
   }
 
   lastReadSpoolNumber = spool.spoolNumber > 0 ? spool.spoolNumber : -1;
+  lastReadVendorCode = spool.vendorCode;
   bool active = refreshSpoolmanData();
   uiSetSpoolmanMode(active);
 
@@ -106,6 +112,7 @@ void handleReadTagRequested() {
 // current, then hands off to the UI.
 void handleWriteScreenOpened() {
   lastReadSpoolNumber = -1;
+  lastReadVendorCode = -1;
   bool active = refreshSpoolmanData();
   uiSetSpoolmanMode(active);
   if (active || !spoolmanActive()) uiSetStatus(T(StrId::Ready));
@@ -187,10 +194,14 @@ void handleWriteTagRequested() {
   if (!validateBeforeSpoolman(spool)) return;
   resolveSpoolmanFields(spool);
   // Byte 2 only ever holds the QIDI vendor (0 = GENERIC, 1 = QIDI); the
-  // Spoolman vendor lives in byte 13. A Spoolman-linked spool is a
-  // third-party one (GENERIC), an unlinked one is written as QIDI.
+  // Spoolman vendor lives in byte 13. Spoolman mode has no QIDI vendor
+  // dropdown: a re-write keeps the vendor of the tag that was read, a fresh
+  // tag gets GENERIC if linked to a Spoolman vendor (a third-party spool) and
+  // QIDI otherwise.
   if (spoolmanActive()) {
-    spool.vendorCode = qidiVendorCode(spool.internalVendorId != 0 ? "GENERIC" : "QIDI");
+    spool.vendorCode = lastReadVendorCode >= 0
+                           ? (uint8_t)lastReadVendorCode
+                           : qidiVendorCode(spool.internalVendorId != 0 ? "GENERIC" : "QIDI");
   }
   if (spool.spoolNumber > 999) {
     // A newly created spool got a number that does not fit; it exists in
