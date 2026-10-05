@@ -42,6 +42,10 @@ wt32sc01plus/
     main.cpp                     Wires it all together
 ```
 
+## Bill of materials
+
+The parts list for building the terminal is in [`CAD/BOM.md`](CAD/BOM.md).
+
 ## Wiring
 
 - **Display + touch**: on-board. The ST7796 display uses an 8-bit parallel
