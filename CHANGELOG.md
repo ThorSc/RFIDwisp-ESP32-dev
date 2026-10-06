@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-06
+
 ### Fixed
 
 - Firmware update: after "Install" (or "Check now") the screen now shows the
